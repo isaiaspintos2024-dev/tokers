@@ -1,0 +1,83 @@
+name: Compilar APK de Toker's
+
+# Se ejecuta solo cada vez que subís cambios, o a mano desde la pestaña "Actions"
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v6
+
+      - name: Preparar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Preparar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Crear el proyecto Android
+        run: |
+          rm -rf android
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#ff6a3d' --iconBackgroundColorDark '#ff6a3d' --splashBackgroundColor '#121215' --splashBackgroundColorDark '#121215'
+          node scripts/patch-android.js
+          npx cap sync android
+
+      - name: Compilar el APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../Tokers.apk
+
+      - name: Publicar el APK para descargarlo desde el celular
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete ultima-version --yes --cleanup-tag || true
+          gh release create ultima-version Tokers.apk \
+            --title "Toker's — versión 1.${{ github.run_number }}" \
+            --notes "Descargá **Tokers.apk** desde el celular Android y abrilo para instalar." \
+            --latest
+
+      - name: Guardar el APK y la versión web en ramas del repositorio
+        run: |
+          git config --global user.name "Toker's"
+          git config --global user.email "tokers@users.noreply.github.com"
+          # rama "apk": siempre tiene el último Tokers.apk
+          mkdir -p /tmp/apk && cp Tokers.apk /tmp/apk/
+          # rama "gh-pages": la app web (para iPhone o para instalar desde el navegador)
+          mkdir -p /tmp/web && cp -r www/. /tmp/web/
+          cat > /tmp/web/sw.js <<'SW'
+          const CACHE = 'tokers-web-${{ github.run_number }}';
+          const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './intro.webm', './intro.mp4'];
+          self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
+          self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
+          self.addEventListener('fetch', e => {
+            const r = e.request; if (r.method !== 'GET' || new URL(r.url).origin !== location.origin) return;
+            if (r.mode === 'navigate') { e.respondWith(fetch(r).then(res => { const c = res.clone(); caches.open(CACHE).then(x => x.put('./index.html', c)); return res; }).catch(() => caches.match('./index.html'))); return; }
+            e.respondWith(caches.match(r, { ignoreSearch: true }).then(h => h || fetch(r)));
+          });
+          SW
+          for b in apk gh-pages; do
+            rm -rf /tmp/out && mkdir /tmp/out && cd /tmp/out && git init -q -b $b
+            if [ $b = apk ]; then cp /tmp/apk/Tokers.apk .; else cp -r /tmp/web/. .; touch .nojekyll; fi
+            git add -A && git commit -qm "Toker's versión 1.${{ github.run_number }}"
+            git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" $b
+            cd "$GITHUB_WORKSPACE"
+          done

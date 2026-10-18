@@ -1,0 +1,22 @@
+{
+  "name": "tokers",
+  "version": "1.0.0",
+  "description": "Toker's — app de dibujo para celular (Android con Capacitor)",
+  "scripts": {
+    "android": "npx cap sync android && npx cap open android"
+  },
+  "author": "Salomón",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/share": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  },
+  "private": true
+}
