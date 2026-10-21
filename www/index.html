@@ -2321,6 +2321,7 @@ function startStroke(e, p) {
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
   stroke.dyn = (!pixelMode && DYN_TOOLS.includes(tool)) ? getDyn(tool) : null;
   stroke.tlen = taperLen(settings.size); stroke.pts = []; stroke.len = 0; stroke.total = null;
+  stroke.estLen = 600 / viewScale();   // largo probable mientras se dibuja (equivale a 600 px de pantalla)
   stroke.seed = (Math.random() * 1e9) | 0; stroke.rng = seededRand(stroke.seed);
   // transición de colores a lo largo del trazo
   stroke.cmode = (erasing || smudging || tool === 'gradient') ? 'solid' : settings.colorMode;
@@ -2380,8 +2381,9 @@ function pf(q) {
   const s = stroke; let f = s.usePressure ? 0.2 + 0.8 * q.p : 1;
   const D = s.dyn; if (!D) return f;
   if (q.v != null) f *= q.v;
-  if (D.start > 0) f *= taperF(q.d / (s.tlen * D.start));
-  if (D.end > 0 && s.total != null) f *= taperF((s.total - q.d) / (s.tlen * D.end));
+  // Largo de cada punta (en píxeles de la hoja): nunca más del 45 % del trazo, así el medio llega siempre al tamaño elegido
+  if (D.start > 0) f *= taperF(q.d / (D.start * Math.min(s.tlen, 0.45 * (s.total != null ? s.total : Math.max(s.len, s.estLen)))));
+  if (D.end > 0 && s.total != null) f *= taperF((s.total - q.d) / (D.end * Math.min(s.tlen, 0.45 * s.total)));
   return f;
 }
 function grow(x, y, r) {
@@ -2586,7 +2588,7 @@ function endStroke() {
     const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
     f.d = s.len + (s.sp ? Math.hypot(f.x - s.sp.x, f.y - s.sp.y) : 0);
     s.pts.push(f);
-    if (s.dyn && s.dyn.end > 0 && s.pts.length > 1) replayStroke(s);   // rehace el trazo con la punta del final
+    if (s.dyn && (s.dyn.end > 0 || s.dyn.start > 0) && s.pts.length > 1) replayStroke(s);   // rehace el trazo con las puntas según su largo real
     else renderPoint(f, true);
   }
   if (s.raf) cancelAnimationFrame(s.raf);
@@ -4509,8 +4511,8 @@ function drawDynPreview(d) {
     const a = pts[i - 1], b = pts[i], u = i / N;
     const speed = Math.sin(u * Math.PI);               // rápido en el medio
     let f = 1 - d.speed * 0.85 * clamp((speed * 2.6 - 0.2) / 2.2, 0, 1);
-    if (d.start > 0) f *= taperF(b.d / (L * d.start));
-    if (d.end > 0) f *= taperF((len - b.d) / (L * d.end));
+    if (d.start > 0) f *= taperF(b.d / (d.start * Math.min(L, 0.45 * len)));
+    if (d.end > 0) f *= taperF((len - b.d) / (d.end * Math.min(L, 0.45 * len)));
     const r = Math.max(0.4, size * f / 2), steps = 3;
     for (let k = 0; k < steps; k++) { const t = k / steps; x.beginPath(); x.arc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, r, 0, 6.2832); x.fill(); }
   }
