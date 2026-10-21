@@ -50,11 +50,12 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 #viewport{position:absolute;inset:0;touch-action:none;cursor:crosshair;background-color:#0e0e11;
   background-image:radial-gradient(#2a2a31 1px,transparent 1px);background-size:22px 22px}
 #canvas-wrapper{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;
-  box-shadow:0 0 0 1px #0007,0 10px 50px #000b;background-color:#fff;
-  background-image:conic-gradient(#d9d9d9 25%,#fff 0 50%,#d9d9d9 0 75%,#fff 0);background-size:64px 64px}
+  box-shadow:0 0 0 1px #0007,0 10px 50px #000b;background-color:#fff}
+#canvas-wrapper canvas#checker{z-index:-1;image-rendering:pixelated}
 #canvas-wrapper canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 #sel-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:9999}
-#comic-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:7000}
+#canvas-wrapper canvas#comic-canvas{z-index:7000}
+#comic-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
 .tool[data-tool=comic]{display:none}
 body.has-comic .tool[data-tool=comic]{display:flex}
 #comicbar textarea{display:none}
@@ -1478,7 +1479,7 @@ function setView(m) {
   const s = viewScale();   // el borde de la selección mantiene el mismo grosor en pantalla
   selSvg.style.setProperty('--sw', (2.4 / s).toFixed(2));
   selSvg.style.setProperty('--dash', (7 / s).toFixed(2));
-  if (comicSel && settings.tool === 'comic') renderComic();
+  if (comicSel && settings.tool === 'comic') updateComicUI();
   if (animMode) renderBoneOverlay();
   if (pixelMode) updatePixGrid();
 }
@@ -1532,9 +1533,11 @@ selG.append(selA, selB); selSvg.appendChild(selG); wrapper.appendChild(selSvg);
 /* =====================================================================
    HISTORIETA: viñetas y globos de diálogo (se editan aparte del dibujo)
    ===================================================================== */
-const comicSvg = document.createElementNS(SVGNS, 'svg'); comicSvg.id = 'comic-svg'; wrapper.appendChild(comicSvg);
+// El contenido va en un lienzo propio (se repinta solo cuando cambia) y las manijas en una capa de pantalla aparte
+const comicCanvas = document.createElement('canvas'); comicCanvas.id = 'comic-canvas'; comicCanvas.width = comicCanvas.height = 0; wrapper.appendChild(comicCanvas);
+const comicCtx = comicCanvas.getContext('2d');
+const comicUi = document.createElementNS(SVGNS, 'svg'); comicUi.id = 'comic-ui'; viewport.appendChild(comicUi);
 let comic = { panels: [], balloons: [] }, comicSel = null, comicSeq = 1, comicDrag = null;
-let comicCache = null, comicCacheSig = '';
 const COMIC_FONT = '"Comic Neue","Comic Sans MS","Chalkboard SE","Comic Relief","Segoe Print",sans-serif';
 const BALLOON_TYPES = { talk: { ico: '💬', name: 'Diálogo' }, think: { ico: '💭', name: 'Pensamiento' }, shout: { ico: '💥', name: 'Grito' }, narr: { ico: '📜', name: 'Narración' }, whisper: { ico: '🤫', name: 'Susurro' } };
 const cU = () => Math.min(W, H) / 1000;           // unidad relativa al tamaño de la hoja
@@ -1576,59 +1579,63 @@ function fitBalloon(b) {   // agranda el globo si el texto no entra
   const k = b.type === 'narr' ? 1 : b.type === 'shout' ? 0.6 : 0.72;
   b.h = Math.max(b.h, need / k);
 }
-// --- Formas ---
+// --- Formas (en lienzo) ---
 function ellipsePt(b, a, k = 1) { return [b.x + Math.cos(a) * b.w / 2 * k, b.y + Math.sin(a) * b.h / 2 * k]; }
-function tailShape(b) {
-  if (!b.tail || b.type === 'narr') return '';
-  const a = Math.atan2(b.tail.y - b.y, b.tail.x - b.x);
-  if (b.type === 'think') {   // burbujitas que van hacia el personaje
-    const [ex, ey] = ellipsePt(b, a, 1.02); let s = '';
-    const d = Math.hypot(b.tail.x - ex, b.tail.y - ey);
-    if (d < 4) return '';
-    [0.28, 0.62, 0.92].forEach((t, i) => { const r = Math.max(2, Math.min(b.w, b.h) * [0.09, 0.06, 0.035][i]);
-      s += `<circle cx="${r1(ex + (b.tail.x - ex) * t)}" cy="${r1(ey + (b.tail.y - ey) * t)}" r="${r1(r)}"/>`; });
-    return s;
+function circlePath(cx, cy, r) { const p = new Path2D(); p.arc(cx, cy, r, 0, Math.PI * 2); return p; }
+function balloonPaths(b) {
+  const out = [];
+  if (b.type === 'narr') {
+    const x = b.x - b.w / 2, y = b.y - b.h / 2, r = Math.min(b.w, b.h) * 0.04, p = new Path2D();
+    p.moveTo(x + r, y); p.arcTo(x + b.w, y, x + b.w, y + b.h, r); p.arcTo(x + b.w, y + b.h, x, y + b.h, r);
+    p.arcTo(x, y + b.h, x, y, r); p.arcTo(x, y, x + b.w, y, r); p.closePath(); out.push(p); return out;
   }
-  const spread = b.type === 'shout' ? 0.24 : 0.17, k = b.type === 'shout' ? 0.66 : 0.92;
-  const [x1, y1] = ellipsePt(b, a - spread, k), [x2, y2] = ellipsePt(b, a + spread, k);
-  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, bend = b.type === 'shout' ? 0 : 0.18;
-  const cx = mx + (b.tail.x - mx) * 0.5 - (b.tail.y - my) * bend, cy = my + (b.tail.y - my) * 0.5 + (b.tail.x - mx) * bend;
-  return b.type === 'shout' ? `<path d="M${r1(x1)} ${r1(y1)} L${r1(b.tail.x)} ${r1(b.tail.y)} L${r1(x2)} ${r1(y2)} Z"/>`
-    : `<path d="M${r1(x1)} ${r1(y1)} Q${r1(cx)} ${r1(cy)} ${r1(b.tail.x)} ${r1(b.tail.y)} Q${r1((cx + x2) / 2 + (cx - mx) * 0.1)} ${r1((cy + y2) / 2 + (cy - my) * 0.1)} ${r1(x2)} ${r1(y2)} Z"/>`;
-}
-function bodyShape(b) {
-  if (b.type === 'narr') return `<rect x="${r1(b.x - b.w / 2)}" y="${r1(b.y - b.h / 2)}" width="${r1(b.w)}" height="${r1(b.h)}" rx="${r1(Math.min(b.w, b.h) * 0.04)}"/>`;
   if (b.type === 'shout') {
-    const n = 22, pts = []; let seed = 0; for (const ch of b.id) seed = (seed * 31 + ch.charCodeAt(0)) | 0;
-    const R = seededRand(seed);
-    for (let i = 0; i < n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, k = i % 2 ? 0.78 + R() * 0.06 : 1.02 + R() * 0.16; pts.push(ellipsePt(b, a, k).map(r1).join(' ')); }
-    return `<polygon points="${pts.join(' ')}"/>`;
+    let seed = 0; for (const ch of b.id) seed = (seed * 31 + ch.charCodeAt(0)) | 0;
+    const R = seededRand(seed), n = 22, p = new Path2D();
+    for (let i = 0; i < n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, k = i % 2 ? 0.78 + R() * 0.06 : 1.02 + R() * 0.16, [px, py] = ellipsePt(b, a, k); i ? p.lineTo(px, py) : p.moveTo(px, py); }
+    p.closePath(); out.push(p);
+  } else if (b.type === 'think') {
+    const e = new Path2D(); e.ellipse(b.x, b.y, b.w / 2 * 0.86, b.h / 2 * 0.86, 0, 0, Math.PI * 2); out.push(e);
+    const n = 11, r = Math.min(b.w, b.h) * 0.2 + Math.max(b.w, b.h) * 0.05;
+    for (let i = 0; i < n; i++) { const [px, py] = ellipsePt(b, i / n * Math.PI * 2 + 0.3, 0.8); out.push(circlePath(px, py, r)); }
+  } else { const e = new Path2D(); e.ellipse(b.x, b.y, b.w / 2, b.h / 2, 0, 0, Math.PI * 2); out.push(e); }
+  // cola
+  if (b.tail) {
+    const a = Math.atan2(b.tail.y - b.y, b.tail.x - b.x);
+    if (b.type === 'think') {
+      const [ex, ey] = ellipsePt(b, a, 1.02);
+      if (Math.hypot(b.tail.x - ex, b.tail.y - ey) > 4) [0.28, 0.62, 0.92].forEach((t, i) => out.push(circlePath(ex + (b.tail.x - ex) * t, ey + (b.tail.y - ey) * t, Math.max(2, Math.min(b.w, b.h) * [0.09, 0.06, 0.035][i]))));
+    } else {
+      const shout = b.type === 'shout', spread = shout ? 0.24 : 0.17, k = shout ? 0.66 : 0.92;
+      const [x1, y1] = ellipsePt(b, a - spread, k), [x2, y2] = ellipsePt(b, a + spread, k), p = new Path2D();
+      p.moveTo(x1, y1);
+      if (shout) p.lineTo(b.tail.x, b.tail.y);
+      else { const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, cx = mx + (b.tail.x - mx) * 0.5 - (b.tail.y - my) * 0.18, cy = my + (b.tail.y - my) * 0.5 + (b.tail.x - mx) * 0.18;
+        p.quadraticCurveTo(cx, cy, b.tail.x, b.tail.y); p.quadraticCurveTo((cx + x2) / 2 + (cx - mx) * 0.1, (cy + y2) / 2 + (cy - my) * 0.1, x2, y2); }
+      p.lineTo(x2, y2); p.closePath(); out.push(p);
+    }
   }
-  if (b.type === 'think') {
-    const n = 11; let s = `<ellipse cx="${r1(b.x)}" cy="${r1(b.y)}" rx="${r1(b.w / 2 * 0.86)}" ry="${r1(b.h / 2 * 0.86)}"/>`;
-    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + 0.3, [px, py] = ellipsePt(b, a, 0.8);
-      const r = Math.min(b.w, b.h) * 0.2 + Math.max(b.w, b.h) * 0.05;
-      s += `<circle cx="${r1(px)}" cy="${r1(py)}" r="${r1(r)}"/>`; }
-    return s;
-  }
-  return `<ellipse cx="${r1(b.x)}" cy="${r1(b.y)}" rx="${r1(b.w / 2)}" ry="${r1(b.h / 2)}"/>`;
+  return out;
 }
-function balloonSVG(b) {
-  const sw = Math.max(1.5, cU() * 3 * (b.sw || 1)), shapes = bodyShape(b) + tailShape(b);
-  const fill = b.type === 'narr' ? '#fff4c2' : '#ffffff';
-  let g = b.type === 'whisper'
-    ? `<g fill="${fill}" stroke="#111" stroke-width="${r1(sw)}" stroke-dasharray="${r1(sw * 3)} ${r1(sw * 2.2)}">${shapes}</g>`
-    : `<g fill="#111" stroke="#111" stroke-width="${r1(sw * 2)}" stroke-linejoin="round">${shapes}</g><g fill="${fill}" stroke="none">${shapes}</g>`;
+function drawBalloon(x, b) {
+  const sw = Math.max(1.5, cU() * 3 * (b.sw || 1)), P = balloonPaths(b);
+  x.save(); x.lineJoin = 'round';
+  // borde: se pinta grueso y después se rellena encima, así la cola y el globo quedan con un solo contorno
+  x.strokeStyle = '#111'; x.lineWidth = sw * 2;
+  if (b.type === 'whisper') x.setLineDash([sw * 3, sw * 2.2]);
+  P.forEach(p => x.stroke(p)); x.setLineDash([]);
+  x.fillStyle = b.type === 'narr' ? '#fff4c2' : '#ffffff'; P.forEach(p => x.fill(p));
   const lines = textLines(b), lh = b.fs * 1.18, y0 = b.y - (lines.length - 1) * lh / 2;
-  g += `<text x="${r1(b.x)}" text-anchor="middle" dominant-baseline="central" font-family='${COMIC_FONT}' font-size="${r1(b.fs)}" font-weight="${b.bold ? 700 : 400}" fill="#111">` +
-    lines.map((t, i) => `<tspan x="${r1(b.x)}" y="${r1(y0 + i * lh)}">${esc(t)}</tspan>`).join('') + '</text>';
-  return `<g>${g}</g>`;
+  x.fillStyle = '#111'; x.font = `${b.bold ? 700 : 400} ${b.fs}px ${COMIC_FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle';
+  lines.forEach((t, i) => x.fillText(t, b.x, y0 + i * lh));
+  x.restore();
 }
-function panelSVG(p) {
-  const bw = Math.max(1.5, cU() * 6 * (p.bw || 1));
-  return `<polygon points="${p.pts.map(q => q.map(r1).join(' ')).join(' ')}" fill="${p.fill || 'none'}" stroke="#111" stroke-width="${r1(bw)}" stroke-linejoin="miter"/>`;
+function drawPanel(x, p) {
+  x.save(); x.beginPath(); p.pts.forEach(([a, c], i) => i ? x.lineTo(a, c) : x.moveTo(a, c)); x.closePath();
+  if (p.fill) { x.fillStyle = p.fill; x.fill(); }
+  x.lineJoin = 'miter'; x.lineWidth = Math.max(1.5, cU() * 6 * (p.bw || 1)); x.strokeStyle = '#111'; x.stroke(); x.restore();
 }
-function comicContentSVG() { return comic.panels.map(panelSVG).join('') + comic.balloons.map(balloonSVG).join(''); }
+function drawComicContent(x) { comic.panels.forEach(p => drawPanel(x, p)); comic.balloons.forEach(b => drawBalloon(x, b)); }
 // Manijas de edición (solo con la herramienta Cómic)
 function comicHandles() {
   const o = comicSel && findComic(comicSel); if (!o || settings.tool !== 'comic') return [];
@@ -1641,35 +1648,36 @@ function comicHandles() {
   o.pts.forEach((q, i) => { const n = o.pts[(i + 1) % 4]; hs.push(['e' + i, (q[0] + n[0]) / 2, (q[1] + n[1]) / 2]); });
   return hs;
 }
-function renderComic() {
-  comicSvg.setAttribute('width', W); comicSvg.setAttribute('height', H); comicSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  let ui = '';
+let comicRaf = 0;
+function renderComic() {   // repinta el contenido (una vez por cuadro como máximo)
+  if (!comicRaf) comicRaf = requestAnimationFrame(() => { comicRaf = 0; paintComic(); });
+  updateComicUI();
+}
+function paintComic() {
+  if (!hasComic()) { if (comicCanvas.width) comicCanvas.width = comicCanvas.height = 0; return; }
+  if (comicCanvas.width !== W || comicCanvas.height !== H) { comicCanvas.width = W; comicCanvas.height = H; }
+  comicCtx.clearRect(0, 0, W, H); drawComicContent(comicCtx);
+}
+// Manijas dibujadas en la pantalla (al hacer zoom no se repinta la hoja)
+function updateComicUI() {
   const o = comicSel && findComic(comicSel);
-  if (o && settings.tool === 'comic') {
-    const s = viewScale(), r = 11 / s, lw = 2 / s;
-    if (isBalloon(o)) ui += `<rect x="${o.x - o.w / 2}" y="${o.y - o.h / 2}" width="${o.w}" height="${o.h}" fill="none" stroke="#1fbf5b" stroke-width="${lw}" stroke-dasharray="${6 / s} ${4 / s}"/>`;
-    else ui += `<polygon points="${o.pts.map(q => q.join(' ')).join(' ')}" fill="#1fbf5b14" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`;
-    for (const [k, x, y] of comicHandles()) {
-      const tail = k === 'tail', edge = k[0] === 'e';
-      ui += tail ? `<circle cx="${x}" cy="${y}" r="${r * 1.1}" fill="#ffd23f" stroke="#111" stroke-width="${lw}"/>`
-        : edge ? `<rect x="${x - r * 0.75}" y="${y - r * 0.75}" width="${r * 1.5}" height="${r * 1.5}" rx="${r * 0.3}" fill="#fff" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`
-        : `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`;
-    }
+  if (!o || settings.tool !== 'comic') { if (comicUi.firstChild) comicUi.innerHTML = ''; return; }
+  const T = (x, y) => { const q = view.transformPoint({ x, y }); return [Math.round(q.x * 10) / 10, Math.round(q.y * 10) / 10]; };
+  let ui = '';
+  if (isBalloon(o)) {
+    const c = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => T(o.x + a * o.w / 2, o.y + b * o.h / 2).join(',')).join(' ');
+    ui += `<polygon points="${c}" fill="none" stroke="#1fbf5b" stroke-width="2" stroke-dasharray="6 4"/>`;
+  } else ui += `<polygon points="${o.pts.map(q => T(q[0], q[1]).join(',')).join(' ')}" fill="#1fbf5b14" stroke="#1fbf5b" stroke-width="3"/>`;
+  for (const [k, x, y] of comicHandles()) {
+    const [X, Y] = T(x, y);
+    ui += k === 'tail' ? `<circle cx="${X}" cy="${Y}" r="12" fill="#ffd23f" stroke="#111" stroke-width="2"/>`
+      : k[0] === 'e' ? `<rect x="${X - 8}" y="${Y - 8}" width="16" height="16" rx="3" fill="#fff" stroke="#1fbf5b" stroke-width="3"/>`
+      : `<circle cx="${X}" cy="${Y}" r="11" fill="#fff" stroke="#1fbf5b" stroke-width="3"/>`;
   }
-  comicSvg.innerHTML = comicContentSVG() + ui;
+  comicUi.innerHTML = ui;
 }
-// Imagen de la historieta para exportar (se arma aparte porque el texto necesita dibujarse como SVG)
-function refreshComicCache() {
-  const sig = W + 'x' + H + comicSnap();
-  if (sig === comicCacheSig) return Promise.resolve();
-  comicCacheSig = sig;
-  if (!hasComic()) { comicCache = null; return Promise.resolve(); }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${comicContentSVG()}</svg>`;
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-  return loadImageURL(url).then(im => { if (sig !== comicCacheSig) return; const c = makeCanvas(); c.getContext('2d').drawImage(im, 0, 0); comicCache = c; })
-    .catch(() => {}).finally(() => setTimeout(() => URL.revokeObjectURL(url), 500));
-}
-function drawComic(ctx) { if (hasComic() && comicCache) ctx.drawImage(comicCache, 0, 0); }
+function refreshComicCache() { if (comicRaf) { cancelAnimationFrame(comicRaf); comicRaf = 0; paintComic(); } return Promise.resolve(); }
+function drawComic(ctx) { if (hasComic()) drawComicContent(ctx); }
 // --- Crear ---
 function addPanel() {
   const before = comicSnap(), c = toCanvas(vpCenter()), w = W * 0.42, h = H * 0.28;
@@ -1951,9 +1959,15 @@ function updatePixGrid() {
   pixGrid.style.display = on ? '' : 'none';
   if (on) { const u = 1 / viewScale(); pgFine.setAttribute('stroke-width', u.toFixed(4)); pgBold.setAttribute('stroke-width', (1.6 * u).toFixed(4)); }
 }
+// Cuadriculado de transparencia: una imagen chiquita agrandada (casi no usa memoria ni se repinta)
+const checker = document.createElement('canvas'); checker.id = 'checker'; wrapper.prepend(checker);
 function updateCheckerSize() {
   const cs = pixelMode ? Math.max(2, Math.round(Math.max(W, H) / 16)) : 64;
-  wrapper.style.backgroundSize = `${cs}px ${cs}px`;
+  const cw = Math.max(1, Math.round(W / (cs / 2))), ch = Math.max(1, Math.round(H / (cs / 2)));
+  if (checker.width === cw && checker.height === ch) return;
+  checker.width = cw; checker.height = ch;
+  const x = checker.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, cw, ch); x.fillStyle = '#d9d9d9';
+  for (let j = 0; j < ch; j++) for (let i = (j % 2); i < cw; i += 2) x.fillRect(i, j, 1, 1);
 }
 const snapPix = c => pixelMode ? { x: Math.round(c.x), y: Math.round(c.y) } : c;
 function setPixelMode(on) {
