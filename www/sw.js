@@ -1,6 +1,6 @@
 // Service worker de Toker's: permite abrir la app sin internet.
 // Al publicar una versión nueva, cambiá el número de CACHE.
-const CACHE = 'tokers-v17';
+const CACHE = 'tokers-v18';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './logo.png', './intro.webm', './intro.mp4'];
 
 self.addEventListener('install', e => {

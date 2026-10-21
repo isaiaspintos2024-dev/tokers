@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Toker's</title>
-<meta name="description" content="Toker's — estudio de dibujo y pintura con capas para el celular">
+<meta name="description" content="Toker's — la herramienta perfecta para el Artista">
 <meta name="theme-color" content="#0a0d0b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -373,7 +373,7 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
   animation:logoIn 1s cubic-bezier(.2,.8,.2,1) both}
 .logo-stroke{width:min(68vw,420px);height:auto;margin-top:2px}
 .logo-stroke path{stroke-dasharray:520;stroke-dashoffset:520;animation:drawLine .9s .35s ease forwards}
-.logo-sub{margin-top:14px;color:var(--muted);letter-spacing:.32em;text-transform:uppercase;font-size:12px;animation:fadeUp .8s .65s both}
+.logo-sub{margin-top:14px;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;font-size:12px;text-align:center;padding:0 16px;line-height:1.6;animation:fadeUp .8s .65s both}
 @keyframes logoIn{from{opacity:0;transform:scale(.82) translateY(12px)}to{opacity:1;transform:none}}
 @keyframes drawLine{to{stroke-dashoffset:0}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -410,7 +410,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 .home-brand img{width:58px;height:58px;filter:drop-shadow(0 4px 10px #0009)}
 .home-logo{font-size:34px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,#ffd23f,#3fd47a 55%,#19a453);
   -webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.1}
-.home-logo small{display:block;font-size:11px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);-webkit-text-fill-color:var(--muted)}
+.home-logo small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.12em;line-height:1.35;margin-top:2px;text-transform:uppercase;color:var(--muted);-webkit-text-fill-color:var(--muted)}
 .home-h{display:flex;align-items:baseline;gap:6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:22px 0 10px;font-weight:700}
 .home-h span{letter-spacing:0}
 .home-h .grow{flex:1}
@@ -459,7 +459,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#ffd23f"/><stop offset=".55" stop-color="#3fd47a"/><stop offset="1" stop-color="#19a453"/></linearGradient></defs>
       <path d="M14 26 C 90 8, 170 34, 250 18 S 370 8, 406 20" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/>
     </svg>
-    <div class="logo-sub">Estudio de dibujo</div>
+    <div class="logo-sub">La herramienta perfecta para el Artista</div>
   </div>
   <div id="splash-ctrls" hidden>
     <button id="intro-sound" title="Sonido">🔇</button>
@@ -470,7 +470,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 <div id="home" hidden>
   <div class="home-in">
     <div class="home-top">
-      <div class="home-brand"><img src="logo.png" alt=""><div class="home-logo">Toker's<small>Estudio de dibujo</small></div></div>
+      <div class="home-brand"><img src="logo.png" alt=""><div class="home-logo">Toker's<small>La herramienta perfecta para el Artista</small></div></div>
       <button class="hbtn2" id="home-help">❔ Ayuda</button>
     </div>
     <div class="home-h">Nuevo trabajo</div>
@@ -719,7 +719,13 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       </div>
 
       <div class="tab" id="tab-brush" hidden>
-        <div class="ptitle">Tipo de pincel</div>
+        <div id="erase-sec" hidden>
+          <div class="ptitle">🧽 Tipo de borrador</div>
+          <div class="btypes" id="etypes"></div>
+          <p class="hint">Para borrar más suave todavía, bajá la <b>opacidad</b> (la barrita de abajo, al costado del dibujo): cada pasada borra un poco.</p>
+          <div class="sep"></div>
+        </div>
+        <div class="ptitle" id="btypes-title">Tipo de pincel</div>
         <div class="btypes" id="btypes"></div>
         <div id="pix-opts" hidden>
           <label class="check"><input type="checkbox" id="chk-pxfill"> Rectángulo y elipse rellenos</label>
@@ -933,7 +939,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false };
+  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard' };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -2699,6 +2705,11 @@ function startStroke(e, p) {
     stroke.bbox = [b.x, b.y, b.x + b.w, b.y + b.h]; stroke.empty = true;
   }
   if (tool === 'airbrush') stroke.tip = getSoftTip(stroke.color);
+  if (erasing && !pixelMode) {
+    stroke.ek = settings.eraseKind || 'hard';
+    if (stroke.ek === 'air' || stroke.ek === 'soft') stroke.tip = getSoftTip('#000000');
+    if (stroke.ek === 'custom') { stroke.brush = currentBrush(); if (!stroke.brush) stroke.ek = 'soft', stroke.tip = getSoftTip('#000000'); }
+  }
   strokeMove(p, e);
 }
 // Color del trazo según la distancia recorrida (transición A ↔ B o arcoíris)
@@ -2802,7 +2813,15 @@ function drawPt(pt, final) {
   switch (s.tool) {
     case 'custom': customBrush(pt); break;
     case 'gradient': gradientFill(pt, final); break;
-    case 'brush': case 'eraser': if (pixelMode) pixelPen(pt); else roundBrush(pt, final); break;
+    case 'brush': if (pixelMode) pixelPen(pt); else roundBrush(pt, final); break;
+    case 'eraser':
+      if (pixelMode) pixelPen(pt);
+      else if (s.ek === 'soft') softEraser(pt);
+      else if (s.ek === 'air') airbrush(pt);
+      else if (s.ek === 'grain') charcoal(pt);
+      else if (s.ek === 'custom') customBrush(pt);
+      else roundBrush(pt, final);
+      break;
     case 'calligraphy': calligraphy(pt); break;
     case 'airbrush': airbrush(pt); break;
     case 'charcoal': charcoal(pt); break;
@@ -2858,6 +2877,16 @@ function airbrush(pt) {
   walkPath(pt, spacing, (x, y, q) => {
     const rr = s.dyn ? Math.max(0.5, r * pf({ ...q, p: 1 })) : r;
     sctx.globalAlpha = Math.min(1, 0.09 * (s.usePressure ? q.p * 1.6 : 1));
+    sctx.drawImage(s.tip, x - rr, y - rr, rr * 2, rr * 2);
+  });
+  sctx.globalAlpha = 1; grow(pt.x, pt.y, r);
+}
+// Borrador suave: punta esfumada que borra fuerte en el centro y apenas en el borde
+function softEraser(pt) {
+  const s = stroke, r = Math.max(1, s.size / 2), spacing = Math.max(0.75, r * 0.12);
+  walkPath(pt, spacing, (x, y, q) => {
+    const rr = s.dyn ? Math.max(0.5, r * pf({ ...q, p: 1 })) : r;
+    sctx.globalAlpha = s.usePressure ? Math.max(0.1, q.p) * 0.5 : 0.5;
     sctx.drawImage(s.tip, x - rr, y - rr, rr * 2, rr * 2);
   });
   sctx.globalAlpha = 1; grow(pt.x, pt.y, r);
@@ -4986,6 +5015,30 @@ const BRUSH_TYPES = [
   { t: 'custom', ico: '⭐', name: 'Mis pinceles', short: 'Mis pinc.' }, { t: 'smudge', ico: '👆', name: 'Difuminar', short: 'Difuminar' },
   { t: 'gradient', ico: '🌈', name: 'Degradado', short: 'Degradado' }];
 const BRUSH_FAMILY = BRUSH_TYPES.map(b => b.t);
+// Borradores: duro, suave, aerógrafo (de a poco), con textura y con un pincel propio
+const ERASE_TYPES = [
+  { k: 'hard', ico: '🧽', name: 'Duro', tip: 'Borra parejo, con el borde definido' },
+  { k: 'soft', ico: '☁️', name: 'Suave', tip: 'Borde esfumado: borra sin dejar cortes' },
+  { k: 'air', ico: '💨', name: 'Aerógrafo', tip: 'Borra de a poco: pasá varias veces para aclarar' },
+  { k: 'grain', ico: '🪨', name: 'Textura', tip: 'Borra con grano, como una goma sobre carbonilla' },
+  { k: 'custom', ico: '⭐', name: 'Con mi pincel', tip: 'Borra con la forma del pincel elegido en ⭐ Mis pinceles' }];
+function renderEraseTypes() {
+  const sec = $('erase-sec'), on = settings.tool === 'eraser' && !pixelMode; if (!sec) return; updateEraserBtn();
+  sec.hidden = !on; $('btypes-title').textContent = on ? 'Volver a pintar con…' : 'Tipo de pincel';
+  if (!on) return;
+  const el = $('etypes'); el.textContent = '';
+  ERASE_TYPES.forEach(et => {
+    const b = document.createElement('button'); b.className = 'btype' + ((settings.eraseKind || 'hard') === et.k ? ' on' : '');
+    b.innerHTML = '<i></i><span></span>'; b.firstChild.textContent = et.ico; b.lastChild.textContent = et.name;
+    b.onclick = () => { settings.eraseKind = et.k; saveSettings(); renderEraseTypes(); toast(et.ico + ' ' + et.tip, 2400); };
+    el.appendChild(b);
+  });
+}
+function updateEraserBtn() {
+  const b = document.querySelector('.tool[data-tool=eraser] i'); if (!b) return;
+  const et = ERASE_TYPES.find(e => e.k === settings.eraseKind) || ERASE_TYPES[0];
+  b.textContent = pixelMode ? '🧽' : et.ico;
+}
 function renderBrushTypes() {
   const el = $('btypes'); if (!el) return; el.textContent = '';
   const list = pixelMode ? PIX_TYPES : BRUSH_TYPES;
@@ -5000,6 +5053,7 @@ function renderBrushTypes() {
     };
     el.appendChild(b);
   });
+  renderEraseTypes();
   $('pix-opts').hidden = !pixelMode;
   $('chk-pxfill').checked = !!settings.pxFill;
   updateDynUI();
@@ -5982,7 +6036,11 @@ async function newProject(kind) {
   if (animMode) setAnimMode(null);
   if (kind === 'pixel' && settings.palette === 'Básica') { settings.palette = 'PICO-8'; renderPalette(); }
   setDocSize(size[0], size[1]); setPixelMode(kind === 'pixel'); setDocSize(size[0], size[1]); resetScene();
-  replaceDocument([createLayer('Fondo', true)], 0); fitView(); updateBars();
+  // Fondo blanco (bloqueado, para no borrarlo sin querer) + «Capa 1» transparente para dibujar:
+  // así el borrador deja ver la hoja blanca y no se lleva el fondo.
+  if (kind === 'anim') replaceDocument([createLayer('Fondo', true)], 0);
+  else { const fondo = createLayer('Fondo', true); fondo.locked = true; replaceDocument([fondo, createLayer('Capa 1')], 1); }
+  fitView(); updateBars();
   hideHome();
   if (kind === 'anim' && how === 'cells') {
     startCellAnimation();
