@@ -49,8 +49,9 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 #stage{flex:1;position:relative;overflow:hidden;min-width:0;min-height:0}
 #viewport{position:absolute;inset:0;touch-action:none;cursor:crosshair;background-color:#0e0e11;
   background-image:radial-gradient(#2a2a31 1px,transparent 1px);background-size:22px 22px}
-#canvas-wrapper{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;
-  box-shadow:0 0 0 1px #0007,0 10px 50px #000b;background-color:#fff}
+#canvas-wrapper{position:absolute;left:0;top:0;transform-origin:0 0;z-index:1}
+#canvas-wrapper canvas{display:none!important}
+#screen{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0}
 #canvas-wrapper canvas#checker{z-index:-1;image-rendering:pixelated}
 #canvas-wrapper canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 #sel-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:9999}
@@ -797,6 +798,75 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const wrapper = $('canvas-wrapper');
 const viewport = $('viewport');
 
+/* =====================================================================
+   PANTALLA: todas las capas se juntan en UN solo lienzo del tamaño de la pantalla.
+   (Mostrar cada capa de 2048 px como una imagen aparte satura la placa de video
+   del celular y aparecen rectángulos rotos o pedazos viejos.)
+   ===================================================================== */
+var screenCv = null, scx = null, scrRaf = 0, scrCache = null;
+function setupScreen() {
+  screenCv = document.createElement('canvas'); screenCv.id = 'screen';
+  viewport.insertBefore(screenCv, viewport.firstChild);
+  scx = screenCv.getContext('2d');
+  setInterval(() => { if (document.visibilityState === 'visible' && !document.body.classList.contains('at-home')) markScreen(); }, 1000);
+}
+function markScreen() { if (screenCv && !scrRaf) scrRaf = requestAnimationFrame(drawScreen); }
+const zOf = el => { const z = parseInt(el.style.zIndex, 10); return Number.isFinite(z) ? z : el === checker ? -1 : el === comicCanvas ? 7000 : 0; };
+// desenfoque y sombra de los efectos se miden en píxeles de la hoja: se ajustan al zoom
+const scaleFilter = (f, k) => f.replace(/(blur|drop-shadow)\(([^)]*)\)/g, (m, n, a) => `${n}(${a.replace(/(-?[\d.]+)px/g, (_, v) => (v * k).toFixed(2) + 'px')})`);
+function screenEls() {
+  const out = [];
+  for (const el of wrapper.children) if (el.tagName === 'CANVAS' && el.style.display !== 'none' && el.width && el.height) out.push(el);
+  return out.sort((a, b) => zOf(a) - zOf(b));
+}
+function paintEls(x, els, k) {
+  const dim = wrapper.classList.contains('rigdim');
+  for (const el of els) {
+    let a = el.style.opacity === '' ? 1 : +el.style.opacity;
+    if (dim && el.classList.contains('layer')) a = 0.3;
+    if (!(a > 0)) continue;
+    x.globalAlpha = Math.min(1, a);
+    const f = el.style.filter; x.filter = f && f !== 'none' ? scaleFilter(f, k) : 'none';
+    x.imageSmoothingEnabled = el === checker ? false : !pixelMode;
+    x.drawImage(el, 0, 0, W, H);
+  }
+  x.globalAlpha = 1; x.filter = 'none';
+}
+function paintPage(x, dpr) {
+  x.save(); x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 36 * dpr; x.shadowOffsetY = 6 * dpr;
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.restore();
+}
+function drawScreen() {
+  scrRaf = 0;
+  if (!screenCv || document.body.classList.contains('at-home')) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const cw = Math.max(1, Math.round(viewport.clientWidth * dpr)), ch = Math.max(1, Math.round(viewport.clientHeight * dpr));
+  if (screenCv.width !== cw || screenCv.height !== ch) { screenCv.width = cw; screenCv.height = ch; scrCache = null; }
+  const M = new DOMMatrix().scale(dpr, dpr).multiply(view), k = viewScale() * dpr, x = scx;
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cw, ch);
+  const els = screenEls();
+  if (stroke && !stroke.clipped) {
+    // mientras se dibuja: lo de abajo y lo de arriba quedan guardados; solo se repinta la capa activa y el trazo
+    const za = activeIndex * 3 + 1, key = stroke;
+    if (!scrCache || scrCache.key !== key || scrCache.w !== cw || scrCache.h !== ch) {
+      const mk = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
+      const below = scrCache && scrCache.w === cw && scrCache.h === ch ? scrCache.below : mk(), above = scrCache && scrCache.w === cw && scrCache.h === ch ? scrCache.above : mk();
+      const bx = below.getContext('2d'), ax = above.getContext('2d');
+      bx.setTransform(1, 0, 0, 1, 0, 0); bx.clearRect(0, 0, cw, ch); ax.setTransform(1, 0, 0, 1, 0, 0); ax.clearRect(0, 0, cw, ch);
+      bx.setTransform(M); paintPage(bx, dpr); paintEls(bx, els.filter(e => zOf(e) < za), k);
+      ax.setTransform(M); paintEls(ax, els.filter(e => zOf(e) > za + 1), k);
+      scrCache = { key, w: cw, h: ch, below, above };
+    }
+    x.drawImage(scrCache.below, 0, 0);
+    x.setTransform(M); paintEls(x, els.filter(e => { const z = zOf(e); return z === za || z === za + 1; }), k);
+    x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(scrCache.above, 0, 0);
+    return;
+  }
+  if (scrCache) scrCache.key = null;
+  x.setTransform(M); paintPage(x, dpr); paintEls(x, els, k);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 // Límites según la memoria del dispositivo (cada capa de 2048 px ocupa ~16 MB)
 const MEM = navigator.deviceMemory || 4;
 const MAX_LAYERS = MEM <= 2 ? 20 : MEM <= 4 ? 30 : 40;
@@ -973,6 +1043,7 @@ function clipBase(l) { const i = layers.indexOf(l); return (l.clip && i > 0) ? b
 const visualCanvas = l => (clipBase(l) && l.disp) ? l.disp : l.canvas;
 function isShown(l) { const b = clipBase(l), F = folderById(l.folder); return l.visible && l.opacity > 0 && (!b || b.visible) && (!F || (F.visible && F.opacity > 0)); }
 function renderClip(l, box) {
+  markScreen();
   const base = clipBase(l); if (!base) return;
   let created = false;
   if (!l.disp || l.disp.width !== W || l.disp.height !== H) {
@@ -993,6 +1064,7 @@ function refreshClips() {
   layers.forEach(l => { if (clipBase(l)) renderClip(l); else if (l.disp) { l.disp.remove(); l.disp = null; } });
 }
 function layerChanged(l) {
+  markScreen();
   l.dirty = true; updateThumb(l);
   if (l.anim) { cellDirty.add(l.canvas); const t = cellThumb.get(l.canvas); if (t) t.dirty = true; if (animMode) requestRender(); }
   if (layers.some(x => x.clip)) layers.forEach(x => { if (clipBase(x) && (x === l || clipBase(x) === l)) renderClip(x); });
@@ -1187,6 +1259,7 @@ function openEffects(target, isFolder) {
 
 // Orden (z-index) y visibilidad de cada capa
 function applyLayerStyles() {
+  markScreen();
   layers.forEach((l, i) => {
     const base = clipBase(l);
     let op = effOpacity(l), show = l.visible && (!base || base.visible) && folderVisible(l), filt = '';
@@ -1300,6 +1373,7 @@ function pushHistory(entry) {
 }
 function busy() { if (xform) { toast('Primero tocá ✓ Listo o ✕ Cancelar'); return true; } return !!stroke; }
 function undo(fromGesture) {
+  markScreen();
   stopPlay();
   if (busy()) return;
   const e = undoStack.pop();
@@ -1308,6 +1382,7 @@ function undo(fromGesture) {
   if (fromGesture) toast('↶ Deshacer', 900);
 }
 function redo(fromGesture) {
+  markScreen();
   stopPlay();
   if (busy()) return;
   const e = redoStack.pop();
@@ -1344,6 +1419,7 @@ function isLocked(l) {
 }
 function snapshot(layer) { const c = makeCanvas(); c.getContext('2d').drawImage(layer.canvas, 0, 0); return c; }
 function restoreSnapshot(layer, snap) {
+  markScreen();
   const ctx = layer.ctx; ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(snap, 0, 0); ctx.restore();
   layerChanged(layer);
 }
@@ -1473,6 +1549,7 @@ const viewScale = () => Math.hypot(view.a, view.b);
 const vpCenter = () => ({ x: vpRect.width / 2, y: vpRect.height / 2 });
 
 function setView(m) {
+  markScreen();
   view = m; invView = m.inverse();
   wrapper.style.transform = m.toString();
   updateZoomLabel();
@@ -1654,6 +1731,7 @@ function renderComic() {   // repinta el contenido (una vez por cuadro como máx
   updateComicUI();
 }
 function paintComic() {
+  markScreen();
   if (!hasComic()) { if (comicCanvas.width) comicCanvas.width = comicCanvas.height = 0; return; }
   if (comicCanvas.width !== W || comicCanvas.height !== H) { comicCanvas.width = W; comicCanvas.height = H; }
   comicCtx.clearRect(0, 0, W, H); drawComicContent(comicCtx);
@@ -2011,6 +2089,7 @@ function pixelPen(pt) {
 
 /* ---------------- Recortar el lienzo ---------------- */
 function swapLayerCanvas(l, c, ctx) {
+  markScreen();
   c.className = 'layer';
   if (l.canvas.parentNode) wrapper.replaceChild(c, l.canvas);
   l.canvas = c; l.ctx = ctx;
@@ -2138,6 +2217,7 @@ function startTransform() {
   drawFloat(); updateBars(); closePanels();
 }
 function drawFloat() {
+  markScreen();
   const x = xform;
   fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, W, H);
   fctx.setTransform(x.M); fctx.imageSmoothingEnabled = !pixelMode; fctx.imageSmoothingQuality = 'high'; fctx.drawImage(x.src, 0, 0);
@@ -2182,6 +2262,7 @@ const isPaintTool = () => PAINT_TOOLS.includes(settings.tool);
 let stroke = null;
 
 function setDocSize(w, h) {
+  markScreen();
   W = w; H = h;
   wrapper.style.width = w + 'px'; wrapper.style.height = h + 'px';
   for (const c of [strokeCanvas, backup, floatCanvas, animCanvas]) { c.width = w; c.height = h; }
@@ -2343,6 +2424,7 @@ function emitSeg(p0, p1, p2, p3, final) {
   }
 }
 function drawPt(pt, final) {
+  markScreen();
   const s = stroke;
   if (s.cmode !== 'solid') {
     if (s.prevPt) s.dist += Math.hypot(pt.x - s.prevPt.x, pt.y - s.prevPt.y);
@@ -2482,6 +2564,7 @@ function scheduleLive() {
   stroke.raf = requestAnimationFrame(() => { if (stroke) { stroke.raf = 0; liveUpdate(); } });
 }
 function liveUpdate() {
+  markScreen();
   const s = stroke;
   if (s.erasing) eraseComposite();
   if (s.clipped) { const b = clampBox(s.bbox); if (b) renderClip(s.layer, b); }
@@ -2497,6 +2580,7 @@ function eraseComposite() {
   ctx.restore();
 }
 function endStroke() {
+  markScreen();
   const s = stroke; if (!s) return;
   if (s.lastRaw) {
     const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
@@ -2532,6 +2616,7 @@ function replayStroke(s) {
 }
 // Si entra un segundo dedo, el trazo que empezó se anula (era un gesto)
 function cancelStroke() {
+  markScreen();
   const s = stroke; if (!s) return;
   if (s.raf) cancelAnimationFrame(s.raf);
   const b = clampBox(s.bbox);
@@ -2811,6 +2896,7 @@ function renderObjThumb(o, size) {
 /* ---------- Dibujar la escena y los huesos ---------- */
 function requestRender() { if (!rrRaf) rrRaf = requestAnimationFrame(() => { rrRaf = 0; renderAnim(); }); }
 function renderAnim() {
+  markScreen();
   syncCells(); renderCellOnion();
   actx.setTransform(1, 0, 0, 1, 0, 0); actx.clearRect(0, 0, W, H); actx.imageSmoothingEnabled = !pixelMode;
   const o = activeObj();
@@ -3884,6 +3970,7 @@ function cellAt(l, f) { const k = cellKeyAt(l, f); return k >= 0 ? l.cells.get(k
 function newCellCanvas(w = W, h = H) { const c = makeCanvas(w, h); c.className = 'layer'; return c; }
 // Muestra en la capa el dibujo que corresponde al cuadro actual
 function showCell(l) {
+  markScreen();
   if (!l.anim) return false;
   const c = cellAt(l, curF) || l.blank;
   if (!c || c === l.canvas) return false;
@@ -4041,6 +4128,7 @@ function ghost(dst, drawFn, color, alpha) {
 }
 const onionAlpha = (i, n) => scene.onionOpacity * (1 - 0.45 * (i / Math.max(1, n)));   // i = 0 el más cercano
 function renderCellOnion() {
+  markScreen();
   const l = layers[activeIndex];
   const on = animMode === 'anim' && scene.onion && !playing && l && l.anim && l.visible;
   onionCanvas.style.display = on ? '' : 'none'; if (!on) return;
@@ -4274,6 +4362,7 @@ function onDown(e) {
   beginPrimary(e, p, false);
 }
 function onMove(e) {
+  markScreen();
   if (ignored.has(e.pointerId)) return;
   const pt = pointers.get(e.pointerId); if (!pt) return;
   const p = localPt(e); pt.x = p.x; pt.y = p.y;
@@ -4294,6 +4383,7 @@ function onMove(e) {
   }
 }
 function onUp(e) {
+  markScreen();
   if (ignored.delete(e.pointerId)) return;
   const pt = pointers.get(e.pointerId); if (!pt) return;
   pointers.delete(e.pointerId);
@@ -4972,6 +5062,7 @@ function showHome() {
   $('home').scrollTop = 0;
 }
 function hideHome() {
+  setTimeout(markScreen, 0);
   $('home').hidden = true; document.body.classList.remove('at-home');
   $('mi-proj').textContent = curProject ? `${(KINDS[curProject.kind] || KINDS.draw).ico} ${curProject.name}` : '';
   try { localStorage.setItem('tokers.last', curProject ? curProject.id : ''); } catch (e) {}
@@ -5354,7 +5445,7 @@ function setupUI() {
     }
     vpRect = r; lastVP = { w: r.width, h: r.height };
   };
-  window.addEventListener('resize', () => { onResize(); if (animMode) requestRender(); });
+  window.addEventListener('resize', () => { onResize(); markScreen(); if (animMode) requestRender(); });
   resizeHandler = onResize;
   if (screen.orientation) screen.orientation.addEventListener('change', () => setTimeout(onResize, 200));
   return onResize;
@@ -5389,6 +5480,7 @@ function playIntro() {
   });
 }
 async function init() {
+  setupScreen();
   setDocSize(W, H);
   const onResize = setupUI();
   setupHome();
