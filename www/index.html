@@ -56,7 +56,10 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 #canvas-wrapper canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 #sel-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:9999}
 #canvas-wrapper canvas#comic-canvas{z-index:7000}
-#comic-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
+#view-tools{position:absolute;right:8px;top:56px;z-index:15;display:flex;flex-direction:column;gap:6px}
+body.am-rig #view-tools{display:none}
+#comic-ui,#xf-ui,#persp-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
+#persp-ui{z-index:4}
 .tool[data-tool=comic]{display:none}
 body.has-comic .tool[data-tool=comic]{display:flex}
 #comicbar textarea{display:none}
@@ -525,6 +528,10 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <div id="loupe-hex"></div>
     </div>
 
+    <div id="view-tools">
+      <button class="hbtn" id="btn-flip2" title="Ver el dibujo en espejo (del otro lado)">⇋</button>
+      <button class="hbtn" id="btn-persp" title="Guía de perspectiva (puntos de fuga)">📐</button>
+    </div>
     <div class="hud" id="hud-left">
       <button class="hbtn" id="btn-undo" title="Deshacer (Ctrl+Z)">↶</button>
       <button class="hbtn" id="btn-redo" title="Rehacer (Ctrl+Y)">↷</button>
@@ -562,10 +569,23 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <div class="bhint">1 dedo mueve · 2 dedos giran y cambian el tamaño</div>
       <button data-xa="rot"><span>⟳</span>Girar 90°</button>
       <button data-xa="flip"><span>⇋</span>Espejo</button>
+      <button data-xa="persp" id="xa-persp"><span>⬚</span>Perspectiva</button>
       <button data-xa="smaller"><span>−</span>Achicar</button>
       <button data-xa="bigger"><span>+</span>Agrandar</button>
       <button data-xa="cancel"><span>✕</span>Cancelar</button>
       <button data-xa="ok" class="ok"><span>✓</span>Listo</button>
+    </div>
+
+    <!-- Barra de la guía de perspectiva -->
+    <div class="bar" id="perspbar" hidden>
+      <button data-pm="0"><span>✕</span>Apagar</button>
+      <button data-pm="1"><span>•</span>1 punto</button>
+      <button data-pm="2"><span>••</span>2 puntos</button>
+      <button data-pm="3"><span>⁖</span>3 puntos</button>
+      <div class="vsep"></div>
+      <button id="pg-snap"><span>🧲</span>Ajustar trazos</button>
+      <button id="pg-reset"><span>↺</span>Ubicar de nuevo</button>
+      <button id="pg-done" class="ok"><span>✓</span>Listo</button>
     </div>
 
     <!-- Barra de historieta -->
@@ -1564,6 +1584,9 @@ function setView(m) {
   selSvg.style.setProperty('--sw', (2.4 / s).toFixed(2));
   selSvg.style.setProperty('--dash', (7 / s).toFixed(2));
   if (comicSel && settings.tool === 'comic') updateComicUI();
+  if (xform && xform.quad) updateXfUi();
+  if (scene.persp && scene.persp.mode) updatePerspUi();
+  $('btn-flip2').classList.toggle('on', isFlipped());
   if (animMode) renderBoneOverlay();
   if (pixelMode) updatePixGrid();
 }
@@ -2103,6 +2126,7 @@ function swapLayerCanvas(l, c, ctx) {
   if (l.disp) { l.disp.remove(); l.disp = null; }
 }
 function shiftScene(dx, dy) {
+  if (scene.persp && scene.persp.vps) { scene.persp.vps.forEach(v => { v[0] += dx; v[1] += dy; }); updatePerspUi(); }
   comic.panels.forEach(p => p.pts.forEach(q => { q[0] += dx; q[1] += dy; }));
   comic.balloons.forEach(b => { b.x += dx; b.y += dy; if (b.tail) { b.tail.x += dx; b.tail.y += dy; } });
   renderComic(); refreshComicCache();
@@ -2224,28 +2248,220 @@ function startTransform() {
   drawFloat(); updateBars(); closePanels();
 }
 function drawFloat() {
+  updateXfUi();
   markScreen();
   const x = xform;
   fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, W, H);
-  fctx.setTransform(x.M); fctx.imageSmoothingEnabled = !pixelMode; fctx.imageSmoothingQuality = 'high'; fctx.drawImage(x.src, 0, 0);
+  fctx.imageSmoothingEnabled = !pixelMode; fctx.imageSmoothingQuality = 'high';
+  if (x.quad) { warpDraw(fctx, x.src, x.quad); selG.setAttribute('transform', 'matrix(1 0 0 1 -99999 -99999)'); return; }
+  fctx.setTransform(x.M); fctx.drawImage(x.src, 0, 0);
   fctx.setTransform(1, 0, 0, 1, 0, 0);
   const o = x.M.multiply(new DOMMatrix().translate(-x.b.x, -x.b.y));
   selG.setAttribute('transform', `matrix(${o.a} ${o.b} ${o.c} ${o.d} ${o.e} ${o.f})`);
 }
+/* ---------- Perspectiva de lo seleccionado: se arrastran las 4 esquinas ---------- */
+// Homografía del cuadrado unidad a un cuadrilátero (esquinas: arriba-izq, arriba-der, abajo-der, abajo-izq)
+function squareToQuad(q) {
+  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+  let g = 0, h = 0;
+  const den = dx1 * dy2 - dx2 * dy1;
+  if ((Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9) && Math.abs(den) > 1e-9) { g = (dx3 * dy2 - dx2 * dy3) / den; h = (dx1 * dy3 - dx3 * dy1) / den; }
+  const a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, d = y1 - y0 + g * y1, e = y3 - y0 + h * y3;
+  return (u, v) => { const w = g * u + h * v + 1; return [(a * u + b * v + x0) / w, (d * u + e * v + y0) / w]; };
+}
+// Dibuja la imagen deformada: se parte en una malla de triangulitos y cada uno se dibuja con su propia transformación
+function warpDraw(ctx, img, quad) {
+  const map = squareToQuad(quad), sw = img.width, sh = img.height;
+  const N = Math.max(4, Math.min(16, Math.round(Math.max(sw, sh) / 40)));
+  const P = [];
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) P.push(map(i / N, j / N));
+  const at = (i, j) => P[j * (N + 1) + i];
+  const tri = (s0, s1, s2, d0, d1, d2, cx, cy, cw, ch) => {
+    // afín que lleva s0,s1,s2 → d0,d1,d2
+    const [ax, ay] = s0, [bx, by] = s1, [qx, qy] = s2;
+    const den = (bx - ax) * (qy - ay) - (qx - ax) * (by - ay); if (Math.abs(den) < 1e-9) return;
+    const m11 = ((d1[0] - d0[0]) * (qy - ay) - (d2[0] - d0[0]) * (by - ay)) / den;
+    const m12 = ((d2[0] - d0[0]) * (bx - ax) - (d1[0] - d0[0]) * (qx - ax)) / den;
+    const m21 = ((d1[1] - d0[1]) * (qy - ay) - (d2[1] - d0[1]) * (by - ay)) / den;
+    const m22 = ((d2[1] - d0[1]) * (bx - ax) - (d1[1] - d0[1]) * (qx - ax)) / den;
+    const tx = d0[0] - m11 * ax - m12 * ay, ty = d0[1] - m21 * ax - m22 * ay;
+    // el triángulo de destino se agranda medio píxel para que no queden rayitas entre los pedazos
+    const mx = (d0[0] + d1[0] + d2[0]) / 3, my = (d0[1] + d1[1] + d2[1]) / 3;
+    const grow = p => { const vx = p[0] - mx, vy = p[1] - my, L = Math.hypot(vx, vy) || 1; return [p[0] + vx / L * 0.7, p[1] + vy / L * 0.7]; };
+    const g0 = grow(d0), g1 = grow(d1), g2 = grow(d2);
+    ctx.save(); ctx.beginPath(); ctx.moveTo(g0[0], g0[1]); ctx.lineTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]); ctx.closePath(); ctx.clip();
+    ctx.transform(m11, m21, m12, m22, tx, ty);
+    const px = Math.max(0, cx - 2), py = Math.max(0, cy - 2), pw = Math.min(sw - px, cw + 4), ph = Math.min(sh - py, ch + 4);
+    if (pw > 0 && ph > 0) ctx.drawImage(img, px, py, pw, ph, px, py, pw, ph);
+    ctx.restore();
+  };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x0 = i / N * sw, x1 = (i + 1) / N * sw, y0 = j / N * sh, y1 = (j + 1) / N * sh;
+    const A = at(i, j), B = at(i + 1, j), C = at(i + 1, j + 1), D = at(i, j + 1);
+    tri([x0, y0], [x1, y0], [x1, y1], A, B, C, x0, y0, x1 - x0, y1 - y0);
+    tri([x0, y0], [x1, y1], [x0, y1], A, C, D, x0, y0, x1 - x0, y1 - y0);
+  }
+}
+const xfUi = document.createElementNS(SVGNS, 'svg'); xfUi.id = 'xf-ui'; viewport.appendChild(xfUi);
+function updateXfUi() {
+  const x = xform;
+  if (!x || !x.quad) { if (xfUi.firstChild) xfUi.innerHTML = ''; return; }
+  const T = ([a, b]) => { const q = view.transformPoint({ x: a, y: b }); return [Math.round(q.x * 10) / 10, Math.round(q.y * 10) / 10]; };
+  const s = x.quad.map(T);
+  let ui = `<polygon points="${s.map(p => p.join(',')).join(' ')}" fill="none" stroke="#ffd23f" stroke-width="2" stroke-dasharray="7 5"/>`;
+  s.forEach(([X, Y]) => { ui += `<circle cx="${X}" cy="${Y}" r="14" fill="#ffd23f" fill-opacity=".9" stroke="#111" stroke-width="2"/>`; });
+  xfUi.innerHTML = ui;
+}
+function quadCorner(p) {   // ¿tocó una esquina? (en píxeles de pantalla)
+  if (!xform || !xform.quad) return -1;
+  let best = -1, bd = 34;
+  xform.quad.forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function togglePerspective() {
+  const x = xform; if (!x) return;
+  if (x.quad) { x.quad = null; drawFloat(); updateBars(); return toast('Perspectiva quitada', 1200); }
+  const o = x.M;
+  x.quad = [[0, 0], [x.b.w, 0], [x.b.w, x.b.h], [0, x.b.h]].map(([a, b]) => { const q = o.transformPoint(new DOMPoint(a, b)); return [q.x, q.y]; });
+  x.quadM = x.M;
+  drawFloat(); updateBars();
+  toast('⬚ Arrastrá cada esquina amarilla para inclinar en perspectiva. Arrastrando adentro se mueve todo', 3500);
+}
+
+/* =====================================================================
+   GUÍA DE PERSPECTIVA: 1, 2 o 3 puntos de fuga. Con «Ajustar», el trazo
+   sigue solo la línea hacia el punto de fuga más parecido a la dirección del dedo.
+   ===================================================================== */
+const perspUi = document.createElementNS(SVGNS, 'svg'); perspUi.id = 'persp-ui'; viewport.appendChild(perspUi);
+const VP_COLORS = ['#ff5a5f', '#3fa7ff', '#3fd47a'];
+let perspEdit = false, perspDrag = null;
+function perspDefaults(n) {
+  const y = H * 0.42;
+  if (n === 1) return [[W / 2, y]];
+  if (n === 2) return [[W * 0.06, y], [W * 0.94, y]];
+  return [[W * 0.06, y], [W * 0.94, y], [W / 2, H * 0.97]];
+}
+function guideOn() { return scene.persp && scene.persp.mode > 0; }
+function updatePerspUi() {
+  const P = scene.persp;
+  if (!P || !P.mode || document.body.classList.contains('at-home')) { if (perspUi.firstChild) perspUi.innerHTML = ''; return; }
+  const T = (a, b) => { const q = view.transformPoint({ x: a, y: b }); return [q.x, q.y]; };
+  const page = [T(0, 0), T(W, 0), T(W, H), T(0, H)];
+  const R = 6000, n = P.mode === 1 ? 36 : 28;
+  let svg = `<defs><clipPath id="pg-clip"><polygon points="${page.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}"/></clipPath></defs><g clip-path="url(#pg-clip)" stroke-width="1">`;
+  P.vps.slice(0, P.mode).forEach(([vx, vy], k) => {
+    const [sx, sy] = T(vx, vy);
+    let d = '';
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; d += `M${sx.toFixed(1)} ${sy.toFixed(1)}L${(sx + Math.cos(a) * R).toFixed(1)} ${(sy + Math.sin(a) * R).toFixed(1)}`; }
+    svg += `<path d="${d}" stroke="${VP_COLORS[k]}" stroke-opacity=".42" fill="none"/>`;
+  });
+  // horizonte
+  const [a0, b0] = T(...P.vps[0]);
+  let hx = 1, hy = 0;
+  if (P.mode >= 2) { const [a1, b1] = T(...P.vps[1]), L = Math.hypot(a1 - a0, b1 - b0) || 1; hx = (a1 - a0) / L; hy = (b1 - b0) / L; }
+  else { const o = T(0, 0), r = T(1, 0), L = Math.hypot(r[0] - o[0], r[1] - o[1]) || 1; hx = (r[0] - o[0]) / L; hy = (r[1] - o[1]) / L; }
+  svg += `<line x1="${(a0 - hx * R).toFixed(1)}" y1="${(b0 - hy * R).toFixed(1)}" x2="${(a0 + hx * R).toFixed(1)}" y2="${(b0 + hy * R).toFixed(1)}" stroke="#ffd23f" stroke-width="2" stroke-opacity=".8"/>`;
+  svg += '</g>';
+  if (perspEdit) P.vps.slice(0, P.mode).forEach(([vx, vy], k) => {
+    const [sx, sy] = T(vx, vy);
+    svg += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="15" fill="${VP_COLORS[k]}" stroke="#fff" stroke-width="3"/><text x="${sx.toFixed(1)}" y="${(sy + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">${k + 1}</text>`;
+  });
+  perspUi.innerHTML = svg;
+}
+function setPerspMode(n) {
+  const P = scene.persp || (scene.persp = { mode: 0, vps: perspDefaults(3), snap: true });
+  const before = JSON.stringify(P);
+  if (n > 0 && (P.mode === 0 || !P.vps || P.vps.length < 3)) P.vps = perspDefaults(3);
+  if (n > 0 && P.mode !== n) { const d = perspDefaults(n); P.vps = d.concat(perspDefaults(3).slice(d.length)); }
+  P.mode = n;
+  perspChanged(before);
+}
+function perspChanged(before) {
+  const after = JSON.stringify(scene.persp);
+  if (before !== after) pushHistory({ bytes: 0, undo() { scene.persp = JSON.parse(before); updatePerspUi(); updatePerspBar(); scheduleSave(); },
+    redo() { scene.persp = JSON.parse(after); updatePerspUi(); updatePerspBar(); scheduleSave(); } });
+  updatePerspUi(); updatePerspBar(); scheduleSave();
+}
+function openPerspBar() {
+  if (xform) commitTransform();
+  if (!guideOn()) setPerspMode(2);
+  perspEdit = true; updatePerspBar(); updatePerspUi(); updateBars();
+  toast('📐 Arrastrá los puntos de colores para ubicar los puntos de fuga. La línea amarilla es el horizonte', 3800);
+}
+function closePerspBar() { perspEdit = false; updatePerspBar(); updatePerspUi(); updateBars(); }
+function updatePerspBar() {
+  const P = scene.persp || { mode: 0, snap: true };
+  $('perspbar').hidden = !perspEdit;
+  document.querySelectorAll('[data-pm]').forEach(b => b.classList.toggle('on', +b.dataset.pm === P.mode));
+  $('pg-snap').classList.toggle('on', !!P.snap && P.mode > 0);
+  $('btn-persp').classList.toggle('on', P.mode > 0);
+  if (perspEdit) document.body.classList.add('has-bar');
+}
+function perspDown(e, p) {
+  mode = 'persp'; drawPointerId = e.pointerId; drawType = e.pointerType; perspDrag = null;
+  const P = scene.persp; if (!P || !P.mode) return;
+  let best = -1, bd = 40;
+  P.vps.slice(0, P.mode).forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
+  if (best >= 0) perspDrag = { i: best, before: JSON.stringify(P) };
+}
+function perspMove(p) {
+  if (!perspDrag) return;
+  const c = toCanvas(p), P = scene.persp;
+  P.vps[perspDrag.i] = [c.x, c.y];
+  if (P.mode === 2 && perspDrag.i < 2) P.vps[1 - perspDrag.i][1] = c.y;   // en 2 puntos el horizonte queda derecho
+  updatePerspUi();
+}
+function perspUp() { mode = null; if (perspDrag) { perspChanged(perspDrag.before); perspDrag = null; } }
+// Ajustar el trazo a la perspectiva
+function perspSnap(s, c) {
+  const P = scene.persp;
+  if (!P || !P.mode || !P.snap || perspEdit || !['brush', 'calligraphy', 'airbrush', 'charcoal', 'custom', 'eraser'].includes(s.tool)) return c;
+  if (!s.snapO) { s.snapO = { x: c.x, y: c.y }; return c; }
+  if (s.snapLine === undefined) {
+    const mx = c.x - s.snapO.x, my = c.y - s.snapO.y, L = Math.hypot(mx, my);
+    if (L * viewScale() < 14) return null;   // se espera un poquito para saber hacia dónde va
+    const cands = P.vps.slice(0, P.mode).map(([a, b]) => [a - s.snapO.x, b - s.snapO.y]);
+    if (P.mode === 1) cands.push([1, 0], [0, 1]);
+    if (P.mode === 2) cands.push([0, 1]);
+    let best = null, bd = Math.cos(25 * Math.PI / 180);
+    for (const [dx, dy] of cands) {
+      const dl = Math.hypot(dx, dy); if (dl < 1e-6) continue;
+      const k = Math.abs((dx * mx + dy * my) / (dl * L));
+      if (k > bd) { bd = k; best = [dx / dl, dy / dl]; }
+    }
+    s.snapLine = best;   // null = el trazo va libre (no se parece a ninguna dirección)
+  }
+  if (!s.snapLine) return c;
+  const [dx, dy] = s.snapLine, t = (c.x - s.snapO.x) * dx + (c.y - s.snapO.y) * dy;
+  return { x: s.snapO.x + dx * t, y: s.snapO.y + dy * t };
+}
+
 function xformAround(fn) {   // aplica giro/espejo/escala alrededor del centro del contenido
-  const x = xform, c = x.M.transformPoint(new DOMPoint(x.b.w / 2, x.b.h / 2));
+  const x = xform;
+  if (x.quad) {   // en perspectiva: se aplica a las 4 esquinas
+    const cx = x.quad.reduce((a, q) => a + q[0], 0) / 4, cy = x.quad.reduce((a, q) => a + q[1], 0) / 4;
+    const m = fn(new DOMMatrix().translate(cx, cy)).translate(-cx, -cy);
+    x.quad = x.quad.map(([a, b]) => { const q = m.transformPoint(new DOMPoint(a, b)); return [q.x, q.y]; });
+    return drawFloat();
+  }
+  const c = x.M.transformPoint(new DOMPoint(x.b.w / 2, x.b.h / 2));
   x.M = fn(new DOMMatrix().translate(c.x, c.y)).translate(-c.x, -c.y).multiply(x.M);
   drawFloat();
 }
 function commitTransform() {
   const x = xform; if (!x) return;
   const l = x.layer;
-  l.ctx.save(); l.ctx.setTransform(x.M); l.ctx.imageSmoothingEnabled = !pixelMode; l.ctx.imageSmoothingQuality = 'high'; l.ctx.drawImage(x.src, 0, 0); l.ctx.restore();
+  l.ctx.save(); l.ctx.imageSmoothingEnabled = !pixelMode; l.ctx.imageSmoothingQuality = 'high';
+  if (x.quad) warpDraw(l.ctx, x.src, x.quad); else { l.ctx.setTransform(x.M); l.ctx.drawImage(x.src, 0, 0); }
+  l.ctx.restore();
   const after = snapshot(l), rs = restorer(l);
-  const o = x.M.multiply(new DOMMatrix().translate(-x.b.x, -x.b.y));
-  const newSel = { pts: x.sel.pts.map(([px, py]) => { const q = o.transformPoint(new DOMPoint(px, py)); return [q.x, q.y]; }), inverted: x.sel.inverted };
+  let mapPt;
+  if (x.quad) { const H = squareToQuad(x.quad); mapPt = ([px, py]) => H((px - x.b.x) / x.b.w, (py - x.b.y) / x.b.h); }
+  else { const o = x.M.multiply(new DOMMatrix().translate(-x.b.x, -x.b.y)); mapPt = ([px, py]) => { const q = o.transformPoint(new DOMPoint(px, py)); return [q.x, q.y]; }; }
+  const newSel = { pts: x.sel.pts.map(mapPt), inverted: x.sel.inverted };
   const oldSel = x.sel, before = x.before;
-  xform = null; floatCanvas.style.display = 'none';
+  xform = null; floatCanvas.style.display = 'none'; updateXfUi();
   setSelection(newSel); layerChanged(l);
   pushHistory({ bytes: fullBytes() * 2,
     undo() { rs(before); setSelection(oldSel); },
@@ -2253,7 +2469,7 @@ function commitTransform() {
 }
 function cancelTransform() {
   const x = xform; if (!x) return;
-  xform = null; floatCanvas.style.display = 'none';
+  xform = null; floatCanvas.style.display = 'none'; updateXfUi();
   restoreSnapshot(x.layer, x.before);
   setSelection(x.sel);
 }
@@ -2356,7 +2572,7 @@ function strokeColorAt(s, d) {
 }
 function strokeMove(p, ev) {
   const s = stroke; if (!s) return;
-  const c = toCanvas(p);
+  const c = perspSnap(s, toCanvas(p)); if (!c) return;
   const pr = s.usePressure ? Math.max(0.05, ev.pressure || 0) : 1;
   // velocidad del dedo (en pantalla): cuanto más rápido, más fina la línea
   let vf = 1;
@@ -3867,12 +4083,13 @@ async function sceneToData(forFile) {
     const a = scene.audio; audio = { name: a.name, start: a.start || 0, vol: a.vol ?? 1 };
     if (forFile) audio.url = `data:${a.blob.type || 'audio/webm'};base64,` + await blobToBase64(a.blob); else audio.blob = a.blob;
   }
-  return { fps: scene.fps, frames: scene.frames, ease: scene.ease, onion: scene.onion, loop: scene.loop !== false, curF, objSeq, objects, audio, comic: hasComic() ? JSON.parse(comicSnap()) : null,
+  return { fps: scene.fps, frames: scene.frames, ease: scene.ease, onion: scene.onion, loop: scene.loop !== false, curF, objSeq, objects, audio, persp: scene.persp && scene.persp.mode ? JSON.parse(JSON.stringify(scene.persp)) : null, comic: hasComic() ? JSON.parse(comicSnap()) : null,
     onionBefore: scene.onionBefore, onionAfter: scene.onionAfter, onionOpacity: scene.onionOpacity, onionColor: scene.onionColor };
 }
 function resetScene(silent) {
   stopPlay();
-  Object.assign(scene, { fps: 12, frames: 36, ease: true, onion: false, loop: true, objects: [], audio: null, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true });
+  perspEdit = false; if (typeof updatePerspUi === 'function') setTimeout(() => { updatePerspUi(); updatePerspBar(); }, 0);
+  Object.assign(scene, { persp: null, fps: 12, frames: 36, ease: true, onion: false, loop: true, objects: [], audio: null, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true });
   curF = 0; activeObjId = null; selBoneId = null; poseClip = null;
   comic = { panels: [], balloons: [] }; comicSel = null; comicDrag = null; renderComic(); refreshComicCache();
   document.body.classList.toggle('has-comic', !!(curProject && curProject.kind === 'comic'));
@@ -3881,7 +4098,7 @@ function resetScene(silent) {
 async function loadSceneData(d, fromFile) {
   resetScene(true);
   if (d) {
-    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.ease = d.ease !== false; scene.onion = !!d.onion; scene.loop = d.loop !== false;
+    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.ease = d.ease !== false; scene.onion = !!d.onion; scene.loop = d.loop !== false; scene.persp = d.persp || null;
     scene.onionBefore = d.onionBefore ?? 2; scene.onionAfter = d.onionAfter ?? 1; scene.onionOpacity = d.onionOpacity ?? 0.4; scene.onionColor = d.onionColor !== false;
     curF = clamp(d.curF | 0, 0, scene.frames - 1);
     for (const od of d.objects || []) {
@@ -3907,7 +4124,7 @@ async function loadSceneData(d, fromFile) {
       document.body.classList.toggle('has-comic', hasComic() || !!(curProject && curProject.kind === 'comic'));
     }
   }
-  prepareAudio(); renderAnim();
+  prepareAudio(); renderAnim(); updatePerspUi(); updatePerspBar();
 }
 
 /* ---------- Botones del panel de animación ---------- */
@@ -4336,12 +4553,19 @@ function updatePinch() {
   setView(new DOMMatrix().translate(m1.x, m1.y).rotate(rot).scale(ff, ff).translate(-m0.x, -m0.y).multiply(pinch.startView));
 }
 // Transformar lo seleccionado con los dedos
-function startXDrag(e, p) { mode = 'xdrag'; drawPointerId = e.pointerId; drawType = e.pointerType; xdrag = { c0: toCanvas(p), M0: xform.M }; }
+function startXDrag(e, p) { mode = 'xdrag'; drawPointerId = e.pointerId; drawType = e.pointerType;
+  xdrag = { c0: toCanvas(p), M0: xform.M, q0: xform.quad ? xform.quad.map(q => q.slice()) : null, corner: quadCorner(p) }; }
 function moveXDrag(p) {
   const c = toCanvas(p);
+  if (xform.quad && xdrag.q0) {
+    if (xdrag.corner >= 0) xform.quad[xdrag.corner] = [c.x, c.y];
+    else { const dx = c.x - xdrag.c0.x, dy = c.y - xdrag.c0.y; xform.quad = xdrag.q0.map(([a, b]) => [a + dx, b + dy]); }
+    return drawFloat();
+  }
   xform.M = new DOMMatrix().translate(c.x - xdrag.c0.x, c.y - xdrag.c0.y).multiply(xdrag.M0); drawFloat();
 }
 function startXPinch(a, b) {
+  if (xform.quad) { if (mode === 'xdrag' && xdrag && xdrag.q0) { xform.quad = xdrag.q0; drawFloat(); } return startPinch(a, b); }   // en perspectiva, dos dedos mueven la vista
   if (mode === 'xdrag' && xdrag) { xform.M = xdrag.M0; }
   const pa = pointers.get(a), pb = pointers.get(b);
   pinch = { a, b, s1: toCanvas(pa), s2: toCanvas(pb), M0: xform.M, rotating: false, angOff: 0 };
@@ -4355,6 +4579,7 @@ function updateXPinch() {
 }
 
 function beginPrimary(e, p, isTouch) {
+  if (perspEdit) return perspDown(e, p);
   if (animMode === 'rig' || (animMode === 'anim' && settings.tool === 'pose')) return animDown(e, p);
   if (xform) return startXDrag(e, p);
   if (settings.tool === 'pan' || (isTouch && settings.penOnly)) return startPan(e.pointerId, p);
@@ -4388,6 +4613,7 @@ function onDown(e) {
       if (mode === 'draw') cancelStroke();
       if (mode === 'pick') endPick(true);
       if (mode === 'comic') comicUp(true);
+      if (mode === 'persp') { perspDrag = null; }
       if (mode === 'adrag') cancelAdrag();
       if (mode === 'rhandle') cancelHandle();
       if (mode === 'select') cancelSelect();
@@ -4412,6 +4638,7 @@ function onMove(e) {
   } else if (mode === 'select' && e.pointerId === drawPointerId) moveSelect(p);
   else if (mode === 'pick' && e.pointerId === drawPointerId) movePick(p);
   else if (mode === 'comic' && e.pointerId === drawPointerId) comicMove(p);
+  else if (mode === 'persp' && e.pointerId === drawPointerId) perspMove(p);
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) moveXDrag(p);
   else if (mode === 'adrag' && e.pointerId === drawPointerId) moveAdrag(toCanvas(p));
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) moveHandle(toCanvas(p));
@@ -4431,6 +4658,7 @@ function onUp(e) {
   else if (mode === 'select' && e.pointerId === drawPointerId) { endSelect(); mode = null; }
   else if (mode === 'pick' && e.pointerId === drawPointerId) endPick(e.type === 'pointercancel');
   else if (mode === 'comic' && e.pointerId === drawPointerId) comicUp(e.type === 'pointercancel');
+  else if (mode === 'persp' && e.pointerId === drawPointerId) perspUp();
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) { mode = null; xdrag = null; }
   else if (mode === 'adrag' && e.pointerId === drawPointerId) { mode = null; endAdrag(); }
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) { mode = null; endHandle(); }
@@ -4598,13 +4826,15 @@ function updateBars() {
   const selTool = settings.tool === 'select';
   const show = animMode !== 'rig' && (!!xform || !!selection || selTool);
   $('xbar').hidden = !xform || animMode === 'rig';
+  $('xa-persp').classList.toggle('on', !!(xform && xform.quad));
   $('selbar').hidden = !show || !!xform;
   document.querySelectorAll('[data-selmode]').forEach(b => { b.hidden = !selTool; b.classList.toggle('on', b.dataset.selmode === settings.selMode); });
   $('sel-modesep').hidden = !selTool;
   $('sel-hint').hidden = !!selection;
   document.querySelectorAll('[data-sa]').forEach(b => b.hidden = !selection);
   document.body.classList.toggle('has-bar', show);
-  if (show) $('comicbar').hidden = true; else updateComicBar();
+  if (show || perspEdit) $('comicbar').hidden = true; else updateComicBar();
+  if (perspEdit) { $('selbar').hidden = true; document.body.classList.add('has-bar'); }
   renderComic();
 }
 
@@ -4759,6 +4989,8 @@ function showHelp() {
     <li><b>✍️ Forma del trazo</b> (tocá el pincel otra vez): puntas al empezar y al terminar, línea más fina si pasás rápido, y el <b>estabilizador</b> para líneas prolijas. Cada pincel —también los tuyos— recuerda su forma.</li>
     <li><b>💬 Historieta:</b> con la herramienta Cómic armás la página de viñetas, agregás globos (diálogo, pensamiento, grito, narración, susurro), movés la cola con el punto amarillo y tocás el globo otra vez para cambiar el texto.</li>
     <li><b>📁 Carpetas y ✨ efectos:</b> en 📚 Capas agrupás capas en carpetas plegables y les ponés efectos (brillo, color, blanco y negro, sombra…) a una capa o a toda la carpeta.</li>
+    <li><b>⇋ Espejo</b> (a la derecha, arriba): da vuelta la vista para ver cómo queda el dibujo del otro lado. No cambia el dibujo.</li>
+    <li><b>📐 Perspectiva:</b> guía de 1, 2 o 3 puntos de fuga; arrastrás los puntos y con 🧲 Ajustar el trazo sigue solo las líneas. Al mover algo seleccionado, <b>⬚ Perspectiva</b> te deja inclinarlo arrastrando las esquinas.</li>
     <li><b>🔒 Capas:</b> en 📚 podés bloquear una capa para no pintarla sin querer.</li>
     <li><b>Línea de tiempo:</b> tocá un cuadro para ir ahí; arrastrá un dibujo o una clave para cambiarlo de lugar.</li>
     <li><b>⬚ Elegir:</b> seleccionás una zona para pintar solo adentro, moverla, copiarla o recortar el lienzo.</li>
@@ -5393,6 +5625,14 @@ function setupUI() {
   $('chk-penonly').onchange = e => { settings.penOnly = e.target.checked; settings.penAsked = true; saveSettings(); };
   $('chk-sampleall').onchange = e => { settings.sampleAll = e.target.checked; saveSettings(); };
 
+  // espejo y perspectiva
+  $('btn-flip2').onclick = flipView;
+  $('btn-persp').onclick = () => perspEdit ? closePerspBar() : openPerspBar();
+  document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { setPerspMode(+b.dataset.pm); if (+b.dataset.pm === 0) { closePerspBar(); toast('Guía de perspectiva apagada', 1400); } });
+  $('pg-snap').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P); P.snap = !P.snap; perspChanged(before);
+    toast(P.snap ? '🧲 Los trazos siguen las líneas hacia los puntos de fuga' : 'Trazos libres (la guía queda de referencia)', 2600); };
+  $('pg-reset').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P); const d = perspDefaults(P.mode); P.vps = d.concat(perspDefaults(3).slice(d.length)); perspChanged(before); };
+  $('pg-done').onclick = closePerspBar;
   // historieta
   const cmActs = { page: pageTemplate, panel: addPanel, talk: () => addBalloon('talk'), think: () => addBalloon('think'), shout: () => addBalloon('shout'),
     narr: () => addBalloon('narr'), whisper: () => addBalloon('whisper'), text: comicEditText, smaller: () => comicFont(1 / 1.15), bigger: () => comicFont(1.15),
@@ -5405,6 +5645,7 @@ function setupUI() {
   document.querySelectorAll('[data-sa]').forEach(b => b.onclick = () => selActs[b.dataset.sa]());
   const xActs = { rot: () => xformAround(m => m.rotate(90)), flip: () => xformAround(m => m.scale(-1, 1)),
     smaller: () => xformAround(m => m.scale(0.9, 0.9)), bigger: () => xformAround(m => m.scale(1.1, 1.1)),
+    persp: togglePerspective,
     cancel: () => { cancelTransform(); updateBars(); }, ok: () => { commitTransform(); updateBars(); } };
   document.querySelectorAll('[data-xa]').forEach(b => b.onclick = () => xActs[b.dataset.xa]());
 
