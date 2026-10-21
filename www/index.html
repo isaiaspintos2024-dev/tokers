@@ -280,11 +280,17 @@ body:not(.cell-layer) .ctx-cell,body.cell-layer .ctx-static,body:not(.has-bones)
 body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
 #tl-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;border-top:1px solid var(--line);overscroll-behavior:contain}
 #tl-inner{display:flex;align-items:flex-start}
-#tl-names{flex:none;width:96px;background:#1a1a1f;border-right:1px solid var(--line)}
+#tl-names{flex:none;width:112px;background:#1a1a1f;border-right:1px solid var(--line)}
 #tl-names div{height:30px;line-height:30px;font-size:12px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#cfcfd8;cursor:pointer}
 #tl-names .hd{height:24px;line-height:24px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;background:#16161a;font-size:11px}
 #tl-names .sel{background:var(--accent-bg);color:#fff;font-weight:700}
 #tl-names .cellrow{color:#ffd98a}
+#tl-names div{display:flex;align-items:center;gap:2px}
+#tl-names .tl-eye{flex:none;width:22px;height:24px;font-size:13px;padding:0;border-radius:6px}
+#tl-names .tl-eye:active{background:#ffffff22}
+#tl-names span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#tl-names .off span{opacity:.45;text-decoration:line-through}
+#tl-names .statrow{color:#b9c4bc}
 #tl-names .cellrow.sel{background:#3a3220}
 #tl-names .au{height:32px;line-height:32px;color:#7fd6de}
 #tl-track{flex:1;min-width:0}
@@ -607,6 +613,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="dbtn anim-only ctx-cell" id="an-addf"><span>＋</span>Cuadro</button>
         <button class="dbtn anim-only ctx-cell" id="an-dupf"><span>⧉</span>Duplicar</button>
         <button class="dbtn anim-only ctx-cell" id="an-delf"><span>🗑️</span>Quitar</button>
+        <button class="dbtn anim-only" id="an-newlayer"><span>➕</span>Capa</button>
         <button class="dbtn anim-only ctx-static" id="an-animlayer"><span>🎞️</span>Animar capa</button>
         <div class="dvsep anim-only"></div>
         <button class="dbtn anim-only ctx-nobones" id="an-mkobj"><span>🦴</span>Huesos</button>
@@ -3463,7 +3470,8 @@ function boneTree(o) {
 }
 function tlRows() {
   const rows = [];
-  for (let i = layers.length - 1; i >= 0; i--) if (layers[i].anim) rows.push({ type: 'cell', l: layers[i] });
+  // todas las capas, de arriba hacia abajo: las animadas muestran sus dibujos; las fijas, una barra
+  for (let i = layers.length - 1; i >= 0; i--) rows.push({ type: layers[i].anim ? 'cell' : 'static', l: layers[i] });
   const o = activeObj(); if (o) boneTree(o).forEach(r => rows.push({ type: 'bone', b: r.b, d: r.d }));
   return rows;
 }
@@ -3512,7 +3520,12 @@ function drawTimeline() {
   c.textAlign = 'left';
   rows.forEach((r, i) => {
     const y = TLR + i * TLH, cy = y + TLH / 2;
-    if (r.type === 'cell') {
+    c.globalAlpha = r.l && !r.l.visible ? 0.35 : 1;
+    if (r.type === 'static') {
+      const act = r.l === al;
+      c.fillStyle = act ? '#14301f' : (i % 2 ? '#202026' : '#1b1b20'); c.fillRect(0, y, wpx, TLH);
+      c.fillStyle = act ? '#19a45366' : '#ffffff14'; rrect(c, X(0) + 2, y + 9, n * fw - 4, TLH - 18, 4); c.fill();
+    } else if (r.type === 'cell') {
       const act = r.l === al, keys = cellKeys(r.l);
       const dragging = dr && dr.moved && dr.item && dr.item.kind === 'cell' && dr.item.l === r.l;
       c.fillStyle = act ? '#2d2a1f' : (i % 2 ? '#202026' : '#1b1b20'); c.fillRect(0, y, wpx, TLH);
@@ -3539,6 +3552,7 @@ function drawTimeline() {
       ks.forEach(k => { if (k.f < f0 - 1 || k.f > f1 + 1 || (dragging && dr.item.from === k.f)) return; dia(k.f, sel ? '#ffd23f' : '#e9e9ef', 1); });
       if (dragging) dia(dr.item.to, '#ffd23f', 0.8);
     }
+    c.globalAlpha = 1;
   });
   if (!rows.length) {
     c.fillStyle = '#1b1b20'; c.fillRect(0, TLR, wpx, TLH);
@@ -3564,13 +3578,19 @@ function drawTimeline() {
   c.fillStyle = '#fff'; c.font = '800 11px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText(String(curF + 1), px + fw / 2, 10); c.textAlign = 'left';
   // nombres de las filas
   const names = $('tl-names');
-  const sig = rows.map(r => r.type === 'cell' ? 'c' + r.l.id + r.l.name + (r.l === al) : 'b' + r.b.id + r.b.name + r.d + (r.b.id === selBoneId)).join('|') + aud + (o ? o.id : '');
+  const sig = rows.map(r => r.l ? r.type[0] + r.l.id + r.l.name + (r.l === al) + r.l.visible + !!r.l.locked : 'b' + r.b.id + r.b.name + r.d + (r.b.id === selBoneId)).join('|') + aud + (o ? o.id : '');
   if (sig !== tl.sig) {
     tl.sig = sig; names.textContent = '';
     const h = document.createElement('div'); h.className = 'hd'; names.appendChild(h);
     rows.forEach((r, i) => {
       const d = document.createElement('div'); d.dataset.row = i;
-      if (r.type === 'cell') { d.className = 'cellrow' + (r.l === al ? ' sel' : ''); d.textContent = '🎞 ' + r.l.name; }
+      if (r.l) {
+        d.className = (r.type === 'cell' ? 'cellrow' : 'statrow') + (r.l === al ? ' sel' : '') + (r.l.visible ? '' : ' off');
+        const eye = document.createElement('button'); eye.className = 'tl-eye'; eye.dataset.eye = i; eye.textContent = r.l.visible ? '👁' : '🙈';
+        eye.title = r.l.visible ? 'Ocultar capa' : 'Mostrar capa';
+        const nm = document.createElement('span'); nm.textContent = (r.type === 'cell' ? '🎞 ' : '▭ ') + r.l.name;
+        d.append(eye, nm);
+      }
       else { if (r.b.id === selBoneId) d.className = 'sel'; d.style.paddingLeft = (6 + r.d * 8) + 'px'; d.textContent = (r.d ? '↳ ' : '🦴 ') + r.b.name; }
       names.appendChild(d);
     });
@@ -3907,7 +3927,8 @@ function setupAnimUI() {
   $('an-size').onclick = () => { settings.tlBig = !settings.tlBig; saveSettings(); document.body.classList.toggle('tl-big', settings.tlBig); updateDock();
     requestAnimationFrame(() => { if (resizeHandler) resizeHandler(); requestRender(); }); };
   $('an-addf').onclick = () => addFrame(false); $('an-dupf').onclick = () => addFrame(true); $('an-delf').onclick = delFrame;
-  $('an-animlayer').onclick = actAnimLayer; $('an-mkobj').onclick = () => convertDialog(false);
+  $('an-animlayer').onclick = actAnimLayer;
+  $('an-newlayer').onclick = addAnimLayerAbove; $('an-mkobj').onclick = () => convertDialog(false);
   $('an-obj').onclick = objectMenu; $('rg-obj').onclick = objectMenu;
   $('an-rig').onclick = () => setAnimMode('rig'); $('rg-done').onclick = () => setAnimMode('anim');
   $('rg-bone').onclick = makeBone; $('rg-parent').onclick = rigParent; $('rg-name').onclick = rigRename;
@@ -3924,8 +3945,9 @@ function setupAnimUI() {
     stopPlay(); if (xform) commitTransform();
     const p = pos(e), f = frameAt(p.x), r = p.y > TLR ? tl.rows[Math.floor((p.y - TLR) / TLH)] : null;
     let item = null;
+    if (r && r.type === 'static') { const li = layers.indexOf(r.l); if (li >= 0 && li !== activeIndex) { selFolder = null; activeIndex = li; refreshLayers(); } }
     if (r && r.type === 'cell') {
-      const li = layers.indexOf(r.l); if (li >= 0 && li !== activeIndex) { activeIndex = li; refreshLayers(); }
+      const li = layers.indexOf(r.l); if (li >= 0 && li !== activeIndex) { selFolder = null; activeIndex = li; refreshLayers(); }
       if (r.l.cells.has(f)) item = { kind: 'cell', l: r.l, from: f, to: f };
     }
     if (r && r.type === 'bone') { selBoneId = r.b.id; if (r.b.keys.some(k => k.f === f)) item = { kind: 'key', b: r.b, from: f, to: f }; }
@@ -3953,7 +3975,11 @@ function setupAnimUI() {
   $('tl-names').addEventListener('click', e => {
     const d = e.target.closest('[data-row]'); if (!d) return;
     const r = tl.rows[+d.dataset.row]; if (!r) return;
-    if (r.type === 'cell') { activeIndex = layers.indexOf(r.l); refreshLayers(); } else selBoneId = r.b.id;
+    if (e.target.closest('[data-eye]') && r.l) {   // ojo: prender / apagar la capa
+      r.l.visible = !r.l.visible; refreshLayers(); scheduleSave(); requestRender();
+      return toast(r.l.visible ? `👁 «${r.l.name}» visible` : `🙈 «${r.l.name}» oculta`, 1200);
+    }
+    if (r.l) { selFolder = null; activeIndex = layers.indexOf(r.l); refreshLayers(); } else selBoneId = r.b.id;
     requestRender(); updateDock();
   });
 }
@@ -4035,6 +4061,17 @@ function startCellAnimation() {
   if (!scene.objects.length && !scene.audio && animLayers().length === 1) scene.frames = 1;   // como un flipbook: se agregan cuadros de a uno
   setAnimMode('anim'); setTool(settings.brushType || 'brush');
   toast('✏️ Dibujá el primer cuadro. Después tocá ＋ Cuadro y dibujá el siguiente: el anterior se ve en rojo 🧅', 5500);
+}
+// ➕ Capa (en la línea de tiempo): una capa animada nueva, arriba de la elegida
+function addAnimLayerAbove() {
+  if (!canAddLayer()) return;
+  if (xform) commitTransform();
+  const l = createLayer('Animación ' + (animLayers().length + 1)), idx = activeIndex + 1;
+  l.anim = true; l.cells = new Map(); l.blank = l.canvas;
+  insertLayer(l, idx); activeIndex = idx; selFolder = null; refreshLayers();
+  pushHistory(addEntry(l, idx)); scheduleSave(); requestRender();
+  if (!BRUSH_FAMILY.includes(settings.tool) && settings.tool !== 'eraser') setTool(settings.brushType || 'brush');
+  toast(`➕ «${l.name}» va arriba de las demás: dibujá en ella. Con 👁 en la línea de tiempo la prendés o apagás`, 3800);
 }
 function actAnimLayer() {
   const l = layers[activeIndex];
