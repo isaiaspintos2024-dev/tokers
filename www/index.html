@@ -657,6 +657,8 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="dbtn anim-only" id="an-lib"><span>📁</span>Carpeta</button>
         <div class="dseg rig-only"><button data-rsm="lasso">〰️ Lazo</button><button data-rsm="rect">▭</button></div>
         <button class="dbtn rig-only" id="rg-bone"><span>🦴</span>Hacer hueso</button>
+        <button class="dbtn rig-only" id="rg-extract"><span>➕</span>Sacar hueso</button>
+        <button class="dbtn rig-only" id="rg-connect"><span>🔗</span><b id="rg-connect-l">Unir</b></button>
         <button class="dbtn rig-only" id="rg-parent"><span>👪</span>Padre</button>
         <button class="dbtn rig-only" id="rg-name"><span>✏️</span>Nombre</button>
         <button class="dbtn rig-only" id="rg-up"><span>⬆️</span>Adelante</button>
@@ -3316,6 +3318,7 @@ function renderBoneOverlay() {
         out.push(`<polygon points="${F(P.x)},${F(P.y)} ${F(mx + nx * w)},${F(my + ny * w)} ${F(T.x)},${F(T.y)} ${F(mx - nx * w)},${F(my - ny * w)}" fill="${col}" fill-opacity="${op}" stroke="#111" stroke-opacity="${Math.min(1, op + .15)}" stroke-width="${F(1.5 * u)}"/>`);
       }
       out.push(`<circle cx="${F(P.x)}" cy="${F(P.y)}" r="${F((sel ? 9 : 7) * u)}" fill="${sel ? '#ffd23f' : '#fff'}" fill-opacity="${act ? .95 : .35}" stroke="#111" stroke-width="${F(2 * u)}"/>`);
+      if (b.connected && act) out.push(`<circle cx="${F(P.x)}" cy="${F(P.y)}" r="${F(13 * u)}" fill="none" stroke="#19a453" stroke-width="${F(3 * u)}"/>`);
       if (animMode === 'rig' && act) out.push(`<circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="#111" stroke-width="${F(5 * u)}"/><circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="${sel ? '#ffd23f' : '#fff'}" stroke-width="${F(2.5 * u)}"/>`);
       if (sel) out.push(`<text x="${F(P.x + 13 * u)}" y="${F(P.y - 13 * u)}" font-size="${F(15 * u)}" font-weight="700" fill="#fff" stroke="#111" stroke-width="${F(3.5 * u)}" paint-order="stroke" font-family="system-ui,sans-serif">${escapeHtml(b.name)}</text>`);
     }
@@ -3443,7 +3446,8 @@ function animDown(e, p) {
   const { o, b } = hit, M = worldMats(o, curF), P = M.get(b.id).transformPoint({ x: b.px, y: b.py });
   const pinv = (b.parent && M.get(b.parent)) ? M.get(b.parent).inverse() : new DOMMatrix();
   const v0 = poseAt(b, curF), a0 = Math.atan2(cp.y - P.y, cp.x - P.x);
-  adrag = { o, b, f: curF, P, pinv, c0: cp, last: a0, acc: 0, d0: Math.max(4, Math.hypot(cp.x - P.x, cp.y - P.y)),
+  if (animTool === 'move' && b.connected) toast('🔗 Está unido: gira desde la articulación (para despegarlo, 🔗 Separar en Armar)', 2200);
+  adrag = { o, b, tool: (animTool === 'move' && b.connected) ? 'rot' : animTool, f: curF, P, pinv, c0: cp, last: a0, acc: 0, d0: Math.max(4, Math.hypot(cp.x - P.x, cp.y - P.y)),
     v0: { r: v0.r, x: v0.x, y: v0.y, s: v0.s }, moved: false };
   mode = 'adrag'; drawPointerId = e.pointerId; drawType = e.pointerType;
   requestRender(); updateDock();
@@ -3452,12 +3456,12 @@ function moveAdrag(cp) {
   const d = adrag; if (!d) return;
   if (!d.moved && Math.hypot(cp.x - d.c0.x, cp.y - d.c0.y) * viewScale() < 4) return;
   d.moved = true;
-  const v = { ...d.v0 };
-  if (animTool === 'rot') {
+  const v = { ...d.v0 }, tool = d.tool || animTool;
+  if (tool === 'rot') {
     const a = Math.atan2(cp.y - d.P.y, cp.x - d.P.x); let da = a - d.last;
     if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
     d.acc += da; d.last = a; v.r = d.v0.r + d.acc * 180 / Math.PI;
-  } else if (animTool === 'move') {
+  } else if (tool === 'move') {
     const a = d.pinv.transformPoint(d.c0), c = d.pinv.transformPoint(cp);
     v.x = d.v0.x + c.x - a.x; v.y = d.v0.y + c.y - a.y;
   } else v.s = clamp(d.v0.s * Math.hypot(cp.x - d.P.x, cp.y - d.P.y) / d.d0, 0.05, 10);
@@ -3495,7 +3499,14 @@ function startHandle(e, h) {
 function moveHandle(cp) {
   const r = rhandle; if (!r) return; r.moved = true;
   const x = clamp(cp.x, -W, 2 * W), y = clamp(cp.y, -H, 2 * H);
-  if (r.w === 'p') { r.b.px = x; r.b.py = y; } else { r.b.tx = x; r.b.ty = y; }
+  const o = r.o, par = r.b.parent ? findBone(o, r.b.parent) : null;
+  if (r.w === 'p') {
+    r.b.px = x; r.b.py = y;
+    if (r.b.connected && par) { par.tx = x; par.ty = y; o.bones.forEach(q => { if (q !== r.b && q.connected && q.parent === par.id) { q.px = x; q.py = y; } }); }
+  } else {
+    r.b.tx = x; r.b.ty = y;
+    o.bones.forEach(q => { if (q.connected && q.parent === r.b.id) { q.px = x; q.py = y; } });   // los hijos unidos siguen la punta
+  }
   requestRender();
 }
 function endHandle() { const r = rhandle; rhandle = null; if (r && r.moved) commitObj(r.o, r.before); else requestRender(); }
@@ -3592,13 +3603,14 @@ function guessJoint(img, ix, iy, owner) {
   }
   return { px, py, tx, ty };
 }
-function makeBone() {
-  if (!selection) return toast('Rodeá con el dedo la parte que querés convertir en hueso (por ejemplo, un brazo)', 3200);
+function makeBone(fromBone) {
+  if (!selection) return toast(fromBone ? `Rodeá con el lazo la parte de «${fromBone.name}» que querés sacar (por ejemplo, el pie de la pierna) y tocá ➕ Sacar hueso otra vez` : 'Rodeá con el dedo la parte que querés convertir en hueso (por ejemplo, un brazo)', 4000);
   const sb = selBox(); if (!sb) return;
   let best = null;
   for (const o of scene.objects) {
-    if (!o.visible) continue; let tot = 0; const parts = [];
+    if (!o.visible || (fromBone && !o.bones.includes(fromBone))) continue; let tot = 0; const parts = [];
     for (const b of o.bones) {
+      if (fromBone && b !== fromBone) continue;   // «sacar hueso»: solo de ese hueso
       if (!b.img || b.ix > sb.x + sb.w || b.iy > sb.y + sb.h || b.ix + b.img.width < sb.x || b.iy + b.img.height < sb.y) continue;
       const pc = makeCanvas(sb.w, sb.h), x = pc.getContext('2d', { willReadFrequently: true });
       x.translate(-sb.x, -sb.y); x.clip(selection.path, selection.rule); x.drawImage(b.img, b.ix, b.iy);
@@ -3607,6 +3619,7 @@ function makeBone() {
     }
     if (tot && (!best || tot > best.tot)) best = { o, parts, tot };
   }
+  if (!best && fromBone) return makeBone();   // esa zona es de otro hueso: se saca de ese y se une a él
   if (!best) return toast('Ahí no hay partes de un objeto. Primero convertí tu dibujo en objeto con 🧩', 3500);
   const o = best.o, before = objState(o), owner = best.parts.reduce((a, c) => c.n > a.n ? c : a).b;
   const piece = makeCanvas(sb.w, sb.h), pctx = piece.getContext('2d');
@@ -3620,10 +3633,60 @@ function makeBone() {
   const img = cropCanvas(piece, pb), ix = sb.x + pb.x, iy = sb.y + pb.y;
   const j = guessJoint(img, ix, iy, owner), id = newBoneId(o);
   if (owner.tx >= ix - 2 && owner.tx <= ix + img.width + 2 && owner.ty >= iy - 2 && owner.ty <= iy + img.height + 2) { owner.tx = j.px; owner.ty = j.py; }
-  o.bones.splice(o.bones.indexOf(owner) + 1, 0, { id, name: newBoneName(o), parent: owner.id, ...j, img, ix, iy, keys: [], blob: null });
+  const nb = { id, name: newBoneName(o), parent: owner.id, connected: true, ...j, img, ix, iy, keys: [], blob: null };
+  o.bones.splice(o.bones.indexOf(owner) + 1, 0, nb);
+  addJointCap(nb, owner);
   activeObjId = o.id; selBoneId = id; setSelection(null);
   commitObj(o, before);
-  toast('🦴 Hueso creado. Si hace falta, arrastrá ● (articulación) y ○ (punta) a su lugar', 4200);
+  toast(`🦴 «${nb.name}» quedó 🔗 unido a «${owner.name}»: al girar no se separa. Si hace falta, arrastrá ● (articulación) y ○ (punta)`, 4500);
+}
+// Rótula: un circulito del dibujo original alrededor de la articulación, pegado al hueso hijo.
+// Al girar, ese círculo gira sobre su centro y tapa el hueco que dejaría el corte.
+function addJointCap(b, par) {
+  if (!b.img || !par || !par.img) return;
+  const R0 = Math.round(Math.min(400, Math.max(40, Math.hypot(b.img.width, b.img.height) * 0.6))), jx = b.px, jy = b.py;
+  const u = makeCanvas(R0 * 2, R0 * 2), ux = u.getContext('2d', { willReadFrequently: true });
+  ux.drawImage(par.img, par.ix - (jx - R0), par.iy - (jy - R0)); ux.drawImage(b.img, b.ix - (jx - R0), b.iy - (jy - R0));
+  const a = ux.getImageData(0, 0, R0 * 2, R0 * 2).data, A = (x, y) => (x < 0 || y < 0 || x >= R0 * 2 || y >= R0 * 2) ? 0 : a[((y | 0) * R0 * 2 + (x | 0)) * 4 + 3];
+  if (A(R0, R0) < 40) return;   // la articulación no cae sobre el dibujo
+  let R = R0;
+  for (let k = 0; k < 24; k++) {   // medio grosor del miembro: hasta dónde hay dibujo alrededor de la articulación
+    const ang = k / 24 * Math.PI * 2, cx = Math.cos(ang), cy = Math.sin(ang); let d = 0;
+    while (d < R0 && A(R0 + cx * d, R0 + cy * d) >= 40) d += 1;
+    R = Math.min(R, d);
+  }
+  R = Math.max(2, Math.round(R * 1.05)); if (R < 3) return;
+  const x0 = Math.floor(Math.min(b.ix, jx - R - 1)), y0 = Math.floor(Math.min(b.iy, jy - R - 1));
+  const x1 = Math.ceil(Math.max(b.ix + b.img.width, jx + R + 1)), y1 = Math.ceil(Math.max(b.iy + b.img.height, jy + R + 1));
+  const n = makeCanvas(x1 - x0, y1 - y0), nx = n.getContext('2d');
+  nx.save(); nx.beginPath(); nx.arc(jx - x0, jy - y0, R, 0, Math.PI * 2); nx.clip();
+  nx.drawImage(u, jx - R0 - x0, jy - R0 - y0); nx.restore();   // la rótula, debajo
+  nx.drawImage(b.img, b.ix - x0, b.iy - y0);                    // el hueso, encima
+  b.img = n; b.ix = x0; b.iy = y0; b.blob = null; b.cap = R;
+}
+// 🔗 Unir / separar: un hueso unido queda pegado a su padre por la articulación
+async function rigConnect() {
+  const o = activeObj(), b = selBone(); if (!b) return toast('Tocá primero el hueso que querés unir');
+  if (b.connected) { const before = objState(o); b.connected = false; commitObj(o, before); updateDock(); return toast(`«${b.name}» quedó suelto: con ✥ Mover se puede despegar`, 2400); }
+  let parId = b.parent;
+  if (!parId) {
+    const bad = descendants(o, b.id), choices = o.bones.filter(q => !bad.has(q.id)).map(q => ({ label: q.name, value: q.id }));
+    if (!choices.length) return toast('No hay otro hueso para unirlo');
+    parId = await dialog({ title: `¿A qué hueso se une «${b.name}»?`, text: 'Se pega por la articulación ● y lo acompaña cuando se mueve.', choices, ok: null });
+    if (!parId) return;
+  }
+  const par = findBone(o, parId), before = objState(o);
+  b.parent = par.id; b.connected = true;
+  par.tx = b.px; par.ty = b.py;                       // la punta del padre va a la articulación del hijo
+  b.keys.forEach(k => { k.x = 0; k.y = 0; });         // unido: ya no se despega
+  if (!b.cap) addJointCap(b, par);
+  commitObj(o, before); updateDock();
+  toast(`🔗 «${b.name}» unido a «${par.name}»`, 2000);
+}
+// ➕ Sacar hueso: de un hueso elegido se saca otro (por ejemplo, de la pierna el pie)
+function rigExtract() {
+  const b = selBone(); if (!b) return toast('Tocá primero el hueso del que querés sacar otro');
+  makeBone(b);
 }
 
 /* ---------- Editar huesos ---------- */
@@ -3718,7 +3781,7 @@ async function saveToLibrary(o) {
   const bb = objBBox(o), dx = -bb.x, dy = -bb.y;
   const item = { id: 'L' + Date.now().toString(36), name: v.trim().slice(0, 30) || o.name, fps: scene.fps, w: bb.w, h: bb.h, withAnim,
     thumb: renderObjThumb(o, 160).toDataURL('image/png'),
-    bones: o.bones.map(b => ({ id: b.id, name: b.name, parent: b.parent, px: b.px + dx, py: b.py + dy, tx: b.tx + dx, ty: b.ty + dy,
+    bones: o.bones.map(b => ({ id: b.id, name: b.name, parent: b.parent, connected: !!b.connected, px: b.px + dx, py: b.py + dy, tx: b.tx + dx, ty: b.ty + dy,
       ix: b.ix + dx, iy: b.iy + dy, imgURL: b.img.toDataURL('image/png'), keys: withAnim ? b.keys.map(k => ({ ...k })) : [] })) };
   const list = await libLoad(); list.push(item);
   if (await libStore(list)) toast(`«${item.name}» quedó guardado en 📁 la carpeta`);
@@ -3823,7 +3886,8 @@ function updateDock() {
   $('an-loop').classList.toggle('on', scene.loop !== false);
   $('an-size').classList.toggle('on', !!settings.tlBig);
   $('an-bones').classList.toggle('on', showBones); $('an-sound').classList.toggle('on', !!scene.audio);
-  const b = selBone(); ['rg-parent', 'rg-name', 'rg-up', 'rg-down', 'rg-del'].forEach(id => $(id).disabled = !b);
+  const b = selBone(); ['rg-parent', 'rg-name', 'rg-up', 'rg-down', 'rg-del', 'rg-extract', 'rg-connect'].forEach(id => $(id).disabled = !b);
+  $('rg-connect-l').textContent = b && b.connected ? 'Separar' : 'Unir'; $('rg-connect').classList.toggle('on', !!(b && b.connected));
   $('rg-bone').classList.toggle('on', !!selection);
 }
 
@@ -4227,7 +4291,7 @@ async function sceneToData(forFile) {
   for (const o of scene.objects) {
     const bones = [];
     for (const b of o.bones) {
-      const r = { id: b.id, name: b.name, parent: b.parent, px: b.px, py: b.py, tx: b.tx, ty: b.ty, ix: b.ix, iy: b.iy, keys: b.keys.map(k => ({ ...k })) };
+      const r = { id: b.id, name: b.name, parent: b.parent, connected: !!b.connected, px: b.px, py: b.py, tx: b.tx, ty: b.ty, ix: b.ix, iy: b.iy, keys: b.keys.map(k => ({ ...k })) };
       if (forFile) r.imgURL = b.img.toDataURL('image/png');
       else { if (!b.blob) b.blob = await canvasToBlob(b.img); r.blob = b.blob; }
       bones.push(r);
@@ -4262,7 +4326,7 @@ async function loadSceneData(d, fromFile) {
       for (const r of od.bones || []) {
         try {
           const im = fromFile ? await loadImageURL(r.imgURL) : await blobToDrawable(r.blob);
-          bones.push({ id: r.id, name: r.name, parent: r.parent || null, px: r.px, py: r.py, tx: r.tx, ty: r.ty, ix: r.ix, iy: r.iy,
+          bones.push({ id: r.id, name: r.name, parent: r.parent || null, connected: !!r.connected, px: r.px, py: r.py, tx: r.tx, ty: r.ty, ix: r.ix, iy: r.iy,
             img: canvasFrom(im), keys: (r.keys || []).map(k => ({ ...k })), blob: fromFile ? null : r.blob });
         } catch (e) {}
       }
@@ -4304,7 +4368,7 @@ function setupAnimUI() {
   $('an-newlayer').onclick = addAnimLayerAbove; $('an-mkobj').onclick = () => convertDialog(false);
   $('an-obj').onclick = objectMenu; $('rg-obj').onclick = objectMenu;
   $('an-rig').onclick = () => setAnimMode('rig'); $('rg-done').onclick = () => setAnimMode('anim');
-  $('rg-bone').onclick = makeBone; $('rg-parent').onclick = rigParent; $('rg-name').onclick = rigRename;
+  $('rg-bone').onclick = () => makeBone(); $('rg-extract').onclick = rigExtract; $('rg-connect').onclick = rigConnect; $('rg-parent').onclick = rigParent; $('rg-name').onclick = rigRename;
   $('rg-up').onclick = () => rigOrder(1); $('rg-down').onclick = () => rigOrder(-1); $('rg-del').onclick = rigDelete;
   $('an-key').onclick = addKeyNow; $('an-unkey').onclick = delKeyNow;
   $('an-copy').onclick = copyPose; $('an-paste').onclick = pastePose;
@@ -5181,6 +5245,7 @@ function showHelp() {
     <li><b>● Color:</b> círculo cromático, paletas (también retro para pixel art), mezclador y transiciones.</li>
     <li><b>👾 Pixel art:</b> en 🏠 Mis proyectos → Pixel art. Lápiz de píxeles, cuadrícula, simetría y exportación agrandada.</li>
     <li><b>🎬 Cuadro a cuadro:</b> cada cuadro tiene su dibujo; <b>＋ Cuadro</b> agrega el siguiente y la <b>🧅 cebolla</b> muestra lo anterior en rojo y lo siguiente en verde.</li>
+    <li><b>🔗 Huesos unidos:</b> cada hueso nuevo queda unido a su padre por la articulación y lleva una «rótula» para que no se abra al girar. En Armar, <b>➕ Sacar hueso</b> saca uno nuevo de un hueso elegido (del muslo la pierna, de la pierna el pie) y <b>🔗 Unir / Separar</b> los pega o despega.</li>
     <li><b>🦴 Huesos:</b> convertí un dibujo en objeto, armale huesos y movelo con <b>Posar</b>. Cada movimiento deja una clave 🔑.</li>
     <li><b>🔊 Sonido:</b> en Animar, el botón Sonido carga un audio o graba con el micrófono; se ve en la línea de tiempo y sale en el video.</li>
     <li><b>✍️ Forma del trazo</b> (tocá el pincel otra vez): puntas al empezar y al terminar, línea más fina si pasás rápido, y el <b>estabilizador</b> para líneas prolijas. Cada pincel —también los tuyos— recuerda su forma.</li>
