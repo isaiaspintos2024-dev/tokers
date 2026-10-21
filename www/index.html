@@ -58,6 +58,7 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 #canvas-wrapper canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 #sel-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:9999}
 #canvas-wrapper canvas#comic-canvas{z-index:7000}
+#sym-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:4}
 #view-tools{position:absolute;right:8px;top:56px;z-index:15;display:flex;flex-direction:column;gap:6px}
 body.am-rig #view-tools{display:none}
 #comic-ui,#xf-ui,#persp-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
@@ -603,6 +604,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <div class="vsep"></div>
       <div class="bhint" id="cm-hint">Tocá una viñeta o un globo para editarlo</div>
       <button data-cmc="text" data-cmbal><span>✏️</span>Texto</button>
+      <button data-cmc="inside" data-cmpanel><span>🖌️</span>Dibujar adentro</button>
       <button data-cmc="smaller" data-cmsel><span>−</span><b id="cm-minus-l">Más chico</b></button>
       <button data-cmc="bigger" data-cmsel><span>+</span><b id="cm-plus-l">Más grande</b></button>
       <button data-cmc="front" data-cmsel><span>⬆️</span>Adelante</button>
@@ -650,6 +652,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <div class="dvsep anim-only"></div>
         <button class="dbtn anim-only" id="an-sound"><span>🔊</span>Sonido</button>
         <button class="dbtn anim-only" id="an-video"><span>🎞️</span>Video</button>
+        <button class="dbtn anim-only" id="an-gif"><span>🎞️</span>GIF</button>
         <button class="dbtn anim-only" id="an-sprites"><span>🖼️</span>Sprites</button>
         <button class="dbtn anim-only" id="an-lib"><span>📁</span>Carpeta</button>
         <div class="dseg rig-only"><button data-rsm="lasso">〰️ Lazo</button><button data-rsm="rect">▭</button></div>
@@ -717,6 +720,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <div class="ptitle">Tipo de pincel</div>
         <div class="btypes" id="btypes"></div>
         <div id="pix-opts" hidden>
+          <label class="check"><input type="checkbox" id="chk-pxfill"> Rectángulo y elipse rellenos</label>
           <label class="check"><input type="checkbox" id="chk-grid"> Mostrar la cuadrícula de píxeles (al acercar)</label>
           <div class="ptitle" style="margin-top:6px">Simetría (dibuja en espejo)</div>
           <div class="seg" id="mirror-seg"><button data-mir="none">No</button><button data-mir="x">↔</button><button data-mir="y">↕</button><button data-mir="xy">✚</button></div>
@@ -738,6 +742,11 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
           <div class="field"><label>Punta al empezar <b id="dyn-start-val">0%</b></label><input type="range" id="dyn-start" min="0" max="100"></div>
           <div class="field"><label>Punta al terminar <b id="dyn-end-val">0%</b></label><input type="range" id="dyn-end" min="0" max="100"></div>
           <div class="field"><label>Más fina si pasás rápido <b id="dyn-speed-val">0%</b></label><input type="range" id="dyn-speed" min="0" max="100"></div>
+        </div>
+        <div class="nopix">
+          <div class="ptitle">🪞 Simetría <small>(se copia lo que dibujás)</small></div>
+          <div class="seg" id="sym-seg"><button data-sym="none">No</button><button data-sym="x">↔</button><button data-sym="y">↕</button><button data-sym="xy">✚</button><button data-sym="r6">❋6</button><button data-sym="r8">❋8</button></div>
+          <label class="check" style="margin-top:8px"><input type="checkbox" id="chk-qshape"> Formas rápidas: si dejás el dedo quieto al final, el trazo se vuelve línea recta, círculo o rectángulo</label>
         </div>
         <div class="field nopix"><label>〰️ Estabilizador <b id="smooth-val">30%</b></label><input type="range" id="smooth-range" min="0" max="100"></div>
         <p class="hint nopix" style="margin:-4px 0 10px">Más alto = líneas más prolijas: el pincel sigue al dedo «con una cuerda» y no copia los temblores.</p>
@@ -792,6 +801,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <div class="msec">Compartir</div>
       <button class="mitem" data-menu="export"><span>💾</span>Exportar imagen (PNG)</button>
       <button class="mitem" data-menu="video"><span>🎞️</span>Exportar animación (video)</button>
+      <button class="mitem" data-menu="gif"><span>🎞️</span>Exportar animación (GIF)</button>
       <button class="mitem" data-menu="sprites"><span>🧱</span>Hoja de sprites (para juegos)</button>
       <button class="mitem" data-menu="comic"><span>💬</span>Historieta: viñetas y globos</button>
       <div class="msec">Lienzo</div>
@@ -849,6 +859,7 @@ function screenEls() {
   return out.sort((a, b) => zOf(a) - zOf(b));
 }
 function paintEl(x, el, k, dim) {
+  if (el === strokeCanvas && symStroke(stroke)) el = symUnion();
   let a = el.style.opacity === '' ? 1 : +el.style.opacity;
   if (dim && el.classList.contains('layer')) a = 0.3;
   if (!(a > 0)) return;
@@ -920,7 +931,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', dyn:{}, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false };
+  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -1640,6 +1651,7 @@ function setView(m) {
   if (comicSel && settings.tool === 'comic') updateComicUI();
   if (xform && xform.quad) updateXfUi();
   if (scene.persp && scene.persp.mode) updatePerspUi();
+  if (symOn()) updateSymUi();
   $('btn-flip2').classList.toggle('on', isFlipped());
   if (animMode) renderBoneOverlay();
   if (pixelMode) updatePixGrid();
@@ -2013,6 +2025,7 @@ function updateComicBar() {
   const o = comicSel && findComic(comicSel), b = isBalloon(o);
   document.querySelectorAll('[data-cmsel]').forEach(x => x.hidden = !o);
   document.querySelectorAll('[data-cmbal]').forEach(x => x.hidden = !b);
+  document.querySelectorAll('[data-cmpanel]').forEach(x => x.hidden = !o || b);
   $('cm-minus-l').textContent = b ? 'Letra −' : 'Borde −'; $('cm-plus-l').textContent = b ? 'Letra +' : 'Borde +';
   $('cm-hint').hidden = !!o;
   if (on) document.body.classList.add('has-bar');
@@ -2160,6 +2173,7 @@ function updateCheckerSize() {
 }
 const snapPix = c => pixelMode ? { x: Math.round(c.x), y: Math.round(c.y) } : c;
 function setPixelMode(on) {
+  setTimeout(() => typeof updateSymUi === 'function' && updateSymUi(), 0);
   // el tamaño del pincel se recuerda aparte para pixel art y para dibujo
   if (on && !settings.sizeIsPix) { settings.normSize = settings.size; settings.size = settings.pixSize || 1; settings.sizeIsPix = true; }
   if (!on && settings.sizeIsPix) { settings.pixSize = settings.size; settings.size = settings.normSize || 15; settings.sizeIsPix = false; }
@@ -2604,7 +2618,7 @@ function cancelTransform() {
 const strokeCanvas = makeCanvas(); const sctx = strokeCanvas.getContext('2d');
 strokeCanvas.style.display = 'none'; wrapper.insertBefore(strokeCanvas, selSvg);
 const backup = makeCanvas(); const bctx = backup.getContext('2d');
-const PAINT_TOOLS = ['brush', 'calligraphy', 'airbrush', 'charcoal', 'eraser', 'smudge', 'custom', 'gradient'];
+const PAINT_TOOLS = ['brush', 'calligraphy', 'airbrush', 'charcoal', 'eraser', 'smudge', 'custom', 'gradient', 'pxline', 'pxrect', 'pxellipse'];
 const isPaintTool = () => PAINT_TOOLS.includes(settings.tool);
 let stroke = null;
 
@@ -2696,6 +2710,7 @@ function strokeColorAt(s, d) {
 }
 function strokeMove(p, ev) {
   const s = stroke; if (!s) return;
+  if (s.shape) return shapeFollow(s, toCanvas(p));
   const c = perspSnap(s, toCanvas(p)); if (!c) return;
   const pr = s.usePressure ? Math.max(0.05, ev.pressure || 0) : 1;
   // velocidad del dedo (en pantalla): cuanto más rápido, más fina la línea
@@ -2722,6 +2737,7 @@ function strokeMove(p, ev) {
   pt.d = s.len += s.sp ? Math.hypot(pt.x - s.sp.x, pt.y - s.sp.y) : 0;
   s.sp = pt; s.pts.push(pt);
   renderPoint(pt, false);
+  quickShapeWatch(s, p);
 }
 // Grosor según presión, velocidad y puntas del trazo (recibe el punto)
 function pf(q) {
@@ -2789,6 +2805,7 @@ function drawPt(pt, final) {
     case 'airbrush': airbrush(pt); break;
     case 'charcoal': charcoal(pt); break;
     case 'smudge': smudge(pt); break;
+    case 'pxline': case 'pxrect': case 'pxellipse': pixelShape(pt); break;
   }
   if (stroke.direct || stroke.clipped) scheduleLive();
 }
@@ -2925,18 +2942,19 @@ function liveUpdate() {
   if (s.clipped) { const b = clampBox(s.bbox); if (b) renderClip(s.layer, b); }
 }
 function eraseComposite() {
-  const s = stroke, b = clampBox(s.bbox); if (!b) return;
-  const ctx = s.layer.ctx;
+  const s = stroke, sym = symStroke(s), b = sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox); if (!b) return;
+  const ctx = s.layer.ctx, mask = sym ? symUnion() : strokeCanvas;
   ctx.save();
   ctx.clearRect(b.x, b.y, b.w, b.h);
   ctx.drawImage(backup, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = s.opacity;
-  ctx.drawImage(strokeCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
+  ctx.drawImage(mask, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   ctx.restore();
 }
 function endStroke() {
   markScreen();
   const s = stroke; if (!s) return;
+  clearTimeout(s.qsT);
   if (s.lastRaw) {
     const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
     f.d = s.len + (s.sp ? Math.hypot(f.x - s.sp.x, f.y - s.sp.y) : 0);
@@ -2947,11 +2965,12 @@ function endStroke() {
     else renderPoint(f, true);
   }
   if (s.raf) cancelAnimationFrame(s.raf);
-  const b = s.empty ? null : clampBox(s.bbox), ctx = s.layer.ctx;
+  const sym = symStroke(s), b = s.empty ? null : (sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox)), ctx = s.layer.ctx;
   if (s.erasing) eraseComposite();
   else if (!s.direct && b) {
+    const src = sym ? symUnion() : strokeCanvas;
     ctx.save(); ctx.globalAlpha = s.opacity;
-    ctx.drawImage(strokeCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); ctx.restore();
+    ctx.drawImage(src, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); ctx.restore();
   }
   sctx.restore();
   strokeCanvas.style.display = 'none';
@@ -2975,6 +2994,7 @@ function replayStroke(s) {
 function cancelStroke() {
   markScreen();
   const s = stroke; if (!s) return;
+  clearTimeout(s.qsT);
   if (s.raf) cancelAnimationFrame(s.raf);
   const b = clampBox(s.bbox);
   sctx.restore();
@@ -4289,7 +4309,7 @@ function setupAnimUI() {
   $('an-key').onclick = addKeyNow; $('an-unkey').onclick = delKeyNow;
   $('an-copy').onclick = copyPose; $('an-paste').onclick = pastePose;
   $('an-bones').onclick = () => { showBones = !showBones; renderAnim(); updateDock(); };
-  $('an-sound').onclick = soundMenu; $('an-video').onclick = exportVideo; $('an-sprites').onclick = exportSprites; $('an-lib').onclick = openLibrary;
+  $('an-sound').onclick = soundMenu; $('an-video').onclick = exportVideo; $('an-sprites').onclick = exportSprites; $('an-gif').onclick = exportGIF; $('an-lib').onclick = openLibrary;
   // línea de tiempo: tocar elige el cuadro; arrastrar un dibujo o una clave la corre de lugar
   const cv = $('tl-canvas');
   const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width }; };
@@ -4754,6 +4774,7 @@ function beginPrimary(e, p, isTouch) {
   if (isPaintTool()) return startStroke(e, p);
   if (settings.tool === 'select') return startSelect(e, p);
   if (settings.tool === 'picker') return startPick(e, p);
+  if (settings.tool === 'pxreplace' && !isTouch) return void doReplace(p);
   if (settings.tool === 'comic') return comicDown(e, p);
   if (isTouch) { mode = 'tap'; return; }
   if (settings.tool === 'fill') doFill(p);
@@ -4841,7 +4862,7 @@ function onUp(e) {
   else if (mode === 'tap' && (e.pointerType !== 'touch' || touchEntries().length === 0)) {
     mode = null;
     if (e.pointerType === 'touch' && gesture && gesture.max === 1 && !gesture.moved) {
-      if (settings.tool === 'fill') doFill(pt); else if (settings.tool === 'picker') doPick(pt);
+      if (settings.tool === 'fill') doFill(pt); else if (settings.tool === 'picker') doPick(pt); else if (settings.tool === 'pxreplace') doReplace(pt);
     }
   }
 
@@ -4903,17 +4924,20 @@ const BRUSH_TYPES = [
 const BRUSH_FAMILY = BRUSH_TYPES.map(b => b.t);
 function renderBrushTypes() {
   const el = $('btypes'); if (!el) return; el.textContent = '';
-  const list = pixelMode ? [{ t: 'brush', ico: '✏️', name: 'Lápiz pixel' }] : BRUSH_TYPES;
+  const list = pixelMode ? PIX_TYPES : BRUSH_TYPES;
   list.forEach(bt => {
     const b = document.createElement('button'); b.className = 'btype' + (settings.tool === bt.t ? ' on' : '');
     b.innerHTML = '<i></i><span></span>'; b.firstChild.textContent = bt.ico; b.lastChild.textContent = bt.name;
     b.onclick = () => {
       setTool(bt.t);
       if (bt.t === 'gradient') toast('🌈 Arrastrá sobre el dibujo: pinta de A a B (los colores se eligen en 🧪 Mezclar)', 3400);
+      if (bt.t === 'pxreplace') toast('🎯 Tocá un color del dibujo: se cambia por el color elegido', 3000);
+      if (['pxline', 'pxrect', 'pxellipse'].includes(bt.t)) toast('Arrastrá de una punta a la otra', 1800);
     };
     el.appendChild(b);
   });
   $('pix-opts').hidden = !pixelMode;
+  $('chk-pxfill').checked = !!settings.pxFill;
   updateDynUI();
   $('custom-sec').hidden = pixelMode || settings.tool !== 'custom';
 }
@@ -4973,7 +4997,7 @@ function bubble(el, r, v) {
 }
 function updateQuick() {
   const t = settings.tool;
-  $('qs').hidden = !((BRUSH_FAMILY.includes(t) || t === 'eraser') && animMode !== 'rig');
+  $('qs').hidden = !((BRUSH_FAMILY.includes(t) || t === 'eraser' || (PIX_TOOLS.includes(t) && t !== 'pxreplace')) && animMode !== 'rig');
 }
 const toolBtns = document.querySelectorAll('.tool[data-tool]');
 const panels = { brush: $('brush-panel'), layers: $('layers-panel'), menu: $('menu-panel') };
@@ -4981,14 +5005,16 @@ const panels = { brush: $('brush-panel'), layers: $('layers-panel'), menu: $('me
 function setTool(t) {
   if (xform) commitTransform();
   if (pixelMode && BRUSH_FAMILY.includes(t) && t !== 'brush') t = 'brush';
+  if (!pixelMode && PIX_TOOLS.includes(t)) t = settings.brushType || 'brush';
   if (t === 'pose' && animMode !== 'anim') t = settings.brushType || 'brush';
   if (t === 'picker' && settings.tool !== 'picker') prevTool = settings.tool;
   settings.tool = t;
   if (BRUSH_FAMILY.includes(t)) settings.brushType = t;
-  const fam = BRUSH_FAMILY.includes(t);
+  if (pixelMode && (t === 'brush' || PIX_TOOLS.includes(t))) settings.pxTool = t;
+  const fam = BRUSH_FAMILY.includes(t) || PIX_TOOLS.includes(t);
   toolBtns.forEach(b => b.classList.toggle('active', b.dataset.tool === t || (b.dataset.tool === 'brush' && fam)));
-  const bt = BRUSH_TYPES.find(b => b.t === settings.brushType) || BRUSH_TYPES[0];
-  $('brush-ico').textContent = pixelMode ? '✏️' : bt.ico; $('brush-lbl').textContent = pixelMode ? 'Lápiz' : bt.short;
+  const bt = BRUSH_TYPES.find(b => b.t === settings.brushType) || BRUSH_TYPES[0], pt = PIX_TYPES.find(b => b.t === (settings.pxTool || 'brush')) || PIX_TYPES[0];
+  $('brush-ico').textContent = pixelMode ? pt.ico : bt.ico; $('brush-lbl').textContent = pixelMode ? (pt.t === 'brush' ? 'Lápiz' : pt.name.split(' ')[0]) : bt.short;
   viewport.style.cursor = t === 'pan' ? 'grab' : 'crosshair';
   if (t !== 'picker') saveSettings();
   updateBars(); updateQuick(); renderBrushTypes(); if (animMode) updateDock();
@@ -5160,6 +5186,9 @@ function showHelp() {
     <li><b>✍️ Forma del trazo</b> (tocá el pincel otra vez): puntas al empezar y al terminar, línea más fina si pasás rápido, y el <b>estabilizador</b> para líneas prolijas. Cada pincel —también los tuyos— recuerda su forma.</li>
     <li><b>💬 Historieta:</b> con la herramienta Cómic armás la página de viñetas, agregás globos (diálogo, pensamiento, grito, narración, susurro), movés la cola con el punto amarillo y tocás el globo otra vez para cambiar el texto.</li>
     <li><b>📁 Carpetas y ✨ efectos:</b> en 📚 Capas agrupás capas en carpetas plegables y les ponés efectos (brillo, color, blanco y negro, sombra…) a una capa o a toda la carpeta.</li>
+    <li><b>🪞 Simetría</b> (tocá el pincel otra vez): lo que dibujás se copia en espejo o en estrella (6 u 8). <b>Formas rápidas:</b> al terminar un trazo dejá el dedo quieto y se vuelve línea recta, círculo o rectángulo.</li>
+    <li><b>👾 Pixel art:</b> además del lápiz, línea, rectángulo, elipse (huecos o rellenos) y 🎯 Cambiar color.</li>
+    <li><b>🎞️ GIF:</b> en Animar o en ☰ exportás la animación como GIF para compartir.</li>
     <li><b>⇋ Espejo</b> (a la derecha, arriba): da vuelta la vista para ver cómo queda el dibujo del otro lado. No cambia el dibujo.</li>
     <li><b>📐 Perspectiva:</b> guía de 1, 2 o 3 puntos de fuga; arrastrás los puntos y con 🧲 Ajustar el trazo sigue solo las líneas. Al mover algo seleccionado, <b>⬚ Perspectiva</b> te deja inclinarlo arrastrando las esquinas.</li>
     <li><b>🔒 Capas:</b> en 📚 podés bloquear una capa para no pintarla sin querer.</li>
@@ -5168,6 +5197,287 @@ function showHelp() {
     <li>Para compartir: <b>☰ → Exportar</b> imagen, video u hoja de sprites. En el APK queda en <b>Documentos › Tokers</b>.</li>
     <li><b>Con teclado:</b> Ctrl+Z / Ctrl+Y, B pincel, E borrador, G balde, I gotero, S elegir, H mano, [ ] tamaño, ← → cuadros, Enter reproduce.</li></ul>` });
 }
+
+
+/* =====================================================================
+   GIF: la animación como GIF (cuadro por cuadro, paleta de hasta 256 colores)
+   ===================================================================== */
+function gifLZW(idx, minCode) {   // compresión LZW del formato GIF
+  const clear = 1 << minCode, eoi = clear + 1, out = [];
+  let codeSize = minCode + 1, next = eoi + 1, dict = new Map(), cur = 0, bits = 0;
+  const emit = c => { cur |= c << bits; bits += codeSize; while (bits >= 8) { out.push(cur & 255); cur >>>= 8; bits -= 8; } };
+  emit(clear);
+  let prefix = idx[0];
+  for (let i = 1; i < idx.length; i++) {
+    const k = idx[i], key = prefix * 4096 + k, v = dict.get(key);
+    if (v !== undefined) { prefix = v; continue; }
+    emit(prefix);
+    if (next === 4096) { emit(clear); dict = new Map(); codeSize = minCode + 1; next = eoi + 1; }
+    else { if (next >= (1 << codeSize)) codeSize++; dict.set(key, next++); }
+    prefix = k;
+  }
+  emit(prefix); emit(eoi);
+  if (bits > 0) out.push(cur & 255);
+  return out;
+}
+// Paleta: si hay 256 colores o menos se usan exactos; si no, se reparten por «corte en la mediana»
+function gifPalette(samples, maxColors) {
+  const uniq = new Map();
+  for (let i = 0; i < samples.length; i += 3) { const k = (samples[i] << 16) | (samples[i + 1] << 8) | samples[i + 2]; uniq.set(k, (uniq.get(k) || 0) + 1); if (uniq.size > 4096) break; }
+  if (uniq.size <= maxColors) return [...uniq.keys()].map(k => [k >> 16, (k >> 8) & 255, k & 255]);
+  let boxes = [Array.from({ length: samples.length / 3 }, (_, i) => i * 3)];
+  const range = b => { let mn = [255, 255, 255], mx = [0, 0, 0]; for (const i of b) for (let c = 0; c < 3; c++) { const v = samples[i + c]; if (v < mn[c]) mn[c] = v; if (v > mx[c]) mx[c] = v; } return mx.map((v, c) => v - mn[c]); };
+  while (boxes.length < maxColors) {
+    let bi = -1, best = -1, ch = 0;
+    boxes.forEach((b, i) => { if (b.length < 2) return; const r = range(b), m = Math.max(...r); if (m * Math.log(b.length + 1) > best) { best = m * Math.log(b.length + 1); bi = i; ch = r.indexOf(m); } });
+    if (bi < 0) break;
+    const b = boxes[bi].sort((x, y) => samples[x + ch] - samples[y + ch]), mid = b.length >> 1;
+    boxes.splice(bi, 1, b.slice(0, mid), b.slice(mid));
+  }
+  return boxes.map(b => { const s = [0, 0, 0]; for (const i of b) for (let c = 0; c < 3; c++) s[c] += samples[i + c]; return s.map(v => Math.round(v / b.length)); });
+}
+async function exportGIF() {
+  if (!hasAnimation()) return toast('Primero animá algo: tocá 🎬 Animar arriba');
+  if (xform) commitTransform();
+  stopPlay();
+  const opts = pixelMode ? [1, 2, 4, 8].filter(v => v === 1 || Math.max(W, H) * v <= 1024).map(v => ({ label: `×${v}`, sub: `${W * v} × ${H * v} px`, value: String(v) }))
+    : [320, 480, 720].map(v => { const k = Math.min(1, v / Math.max(W, H)); return { label: v === 320 ? 'Chico' : v === 480 ? 'Mediano' : 'Grande', sub: `${Math.round(W * k)} × ${Math.round(H * k)} px`, value: String(v) }; });
+  const pick = await dialog({ title: '🎞️ Exportar GIF', text: `${scene.frames} cuadros a ${scene.fps} cuadros por segundo${scene.loop === false ? ', sin repetir' : ', en bucle'}. Los GIF grandes pesan mucho: para WhatsApp conviene «Mediano».`, choices: opts, ok: null });
+  if (!pick) return;
+  const k = pixelMode ? +pick : Math.min(1, +pick / Math.max(W, H));
+  const gw = Math.max(1, Math.round(W * k)), gh = Math.max(1, Math.round(H * k));
+  const cv = makeCanvas(gw, gh), cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.imageSmoothingEnabled = !pixelMode; cx.imageSmoothingQuality = 'high';
+  await refreshComicCache();
+  const card = $('mcard'), modal = $('modal');
+  card.innerHTML = `<h3>🎞️ Armando el GIF…</h3><p class="hint" id="gif-st">Preparando los colores</p><div class="prog"><div id="prog-bar"></div></div><div class="mbtns"><button id="gif-cancel">Cancelar</button></div>`;
+  modal.classList.add('open'); let cancelled = false; closeModal = () => { cancelled = true; };
+  card.querySelector('#gif-cancel').onclick = () => { cancelled = true; };
+  const frame = f => {
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, gw, gh);
+    cx.setTransform(gw / W, 0, 0, gh / H, 0, 0); drawLayersAt(cx, f);
+    drawObjects(cx, f, new DOMMatrix([gw / W, 0, 0, gh / H, 0, 0]));
+    cx.setTransform(gw / W, 0, 0, gh / H, 0, 0); drawComic(cx); cx.setTransform(1, 0, 0, 1, 0, 0);
+    return cx.getImageData(0, 0, gw, gh).data;
+  };
+  try {
+    // 1) colores: muestras de varios cuadros
+    const n = scene.frames, step = Math.max(1, Math.floor(n / 12)), samp = [], stride = Math.max(1, Math.floor(gw * gh / 20000));
+    let transp = false;
+    for (let f = 0; f < n; f += step) { const d = frame(f); for (let i = 0; i < d.length; i += 4 * stride) { if (d[i + 3] < 128) { transp = true; continue; } samp.push(d[i], d[i + 1], d[i + 2]); } }
+    if (pixelMode) for (let f = 0; f < n; f++) { const d = frame(f); for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 128) samp.push(d[i], d[i + 1], d[i + 2]); else transp = true; }
+    const pal = gifPalette(samp.length ? samp : [255, 255, 255], transp ? 255 : 256);
+    const ti = transp ? pal.length : -1; if (transp) pal.push([0, 0, 0]);
+    let bitsP = 1; while ((1 << bitsP) < pal.length) bitsP++;
+    const psize = 1 << bitsP, cache = new Map();
+    const nearest = (r, g, b) => {
+      const key = (r << 16) | (g << 8) | b; let v = cache.get(key); if (v !== undefined) return v;
+      let bd = 1e9; v = 0;
+      for (let i = 0; i < pal.length; i++) { if (i === ti) continue; const p = pal[i], d = (p[0] - r) ** 2 * 3 + (p[1] - g) ** 2 * 4 + (p[2] - b) ** 2 * 2; if (d < bd) { bd = d; v = i; } }
+      cache.set(key, v); return v;
+    };
+    // 2) encabezado
+    const out = [], str = t => { for (const ch of t) out.push(ch.charCodeAt(0)); }, u16 = v => out.push(v & 255, (v >> 8) & 255);
+    str('GIF89a'); u16(gw); u16(gh); out.push(0xF0 | (bitsP - 1), 0, 0);
+    for (let i = 0; i < psize; i++) { const p = pal[i] || [0, 0, 0]; out.push(p[0], p[1], p[2]); }
+    if (scene.loop !== false) { out.push(0x21, 0xFF, 11); str('NETSCAPE2.0'); out.push(3, 1, 0, 0, 0); }
+    // 3) cuadros
+    let tPrev = 0;
+    for (let f = 0; f < n; f++) {
+      if (cancelled) break;
+      const d = frame(f), idx = new Uint8Array(gw * gh);
+      for (let i = 0, j = 0; i < d.length; i += 4, j++) idx[j] = (ti >= 0 && d[i + 3] < 128) ? ti : nearest(d[i], d[i + 1], d[i + 2]);
+      const tNow = Math.round((f + 1) * 100 / scene.fps), delay = Math.max(2, tNow - tPrev); tPrev = tNow;
+      out.push(0x21, 0xF9, 4, (ti >= 0 ? 1 : 0) | (ti >= 0 ? 8 : 4), delay & 255, delay >> 8, ti >= 0 ? ti : 0, 0);
+      out.push(0x2C); u16(0); u16(0); u16(gw); u16(gh); out.push(0);
+      const mc = Math.max(2, bitsP); out.push(mc);
+      const data = gifLZW(idx, mc);
+      for (let i = 0; i < data.length; i += 255) { const len = Math.min(255, data.length - i); out.push(len); for (let j = 0; j < len; j++) out.push(data[i + j]); }
+      out.push(0);
+      const pb = $('prog-bar'); if (pb) pb.style.width = ((f + 1) / n * 100).toFixed(1) + '%';
+      const st = $('gif-st'); if (st) st.textContent = `Cuadro ${f + 1} de ${n}`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    out.push(0x3B);
+    modal.classList.remove('open'); closeModal = null;
+    if (cancelled) return toast('GIF cancelado');
+    const blob = new Blob([new Uint8Array(out)], { type: 'image/gif' });
+    await shareOrDownload(blob, `${safeName(curProject && curProject.name)}_${stamp()}.gif`, 'image/gif');
+    toast(`🎞️ GIF de ${gw} × ${gh} px, ${(blob.size / 1024 / 1024).toFixed(1).replace('.', ',')} MB`, 2600);
+  } catch (e) { modal.classList.remove('open'); closeModal = null; toast('No se pudo crear el GIF'); }
+}
+
+/* =====================================================================
+   LÍNEA Y FORMAS RÁPIDAS: dejando el dedo quieto al final del trazo,
+   se convierte en línea recta, círculo/elipse o rectángulo.
+   ===================================================================== */
+const QS_TOOLS = ['brush', 'calligraphy', 'airbrush', 'charcoal', 'custom', 'eraser'];
+function quickShapeWatch(s, p) {
+  if (s.shape || pixelMode || !QS_TOOLS.includes(s.tool) || settings.quickShape === false) return;
+  if (scene.persp && scene.persp.mode && scene.persp.snap) return;
+  if (s.qsAnchor && Math.hypot(p.x - s.qsAnchor.x, p.y - s.qsAnchor.y) < 7) return;   // casi quieto: el reloj sigue corriendo
+  s.qsAnchor = { x: p.x, y: p.y };
+  clearTimeout(s.qsT); s.qsT = setTimeout(() => tryQuickShape(s), 600);
+}
+function shapePts(sh) {
+  const out = [], add = (x, y) => out.push({ x, y, p: 1, v: 1 });
+  if (sh.type === 'line') { const L = Math.hypot(sh.b.x - sh.a.x, sh.b.y - sh.a.y), n = Math.max(2, Math.ceil(L / 3)); for (let i = 0; i <= n; i++) add(sh.a.x + (sh.b.x - sh.a.x) * i / n, sh.a.y + (sh.b.y - sh.a.y) * i / n); }
+  else if (sh.type === 'ellipse') { const n = 120; for (let i = 0; i <= n; i++) { const t = sh.t0 + i / n * Math.PI * 2; add(sh.cx + Math.cos(t) * sh.rx, sh.cy + Math.sin(t) * sh.ry); } }
+  else { const c = [[sh.x0, sh.y0], [sh.x1, sh.y0], [sh.x1, sh.y1], [sh.x0, sh.y1], [sh.x0, sh.y0]];
+    for (let k = 0; k < 4; k++) { const [ax, ay] = c[k], [bx, by] = c[k + 1], L = Math.hypot(bx - ax, by - ay), n = Math.max(2, Math.ceil(L / 3)); for (let i = k ? 1 : 0; i <= n; i++) add(ax + (bx - ax) * i / n, ay + (by - ay) * i / n); } }
+  let d = 0; out.forEach((q, i) => { if (i) d += Math.hypot(q.x - out[i - 1].x, q.y - out[i - 1].y); q.d = d; });
+  return out;
+}
+function applyShape(s) {
+  const pts = shapePts(s.shape);
+  s.pts = pts; const last = pts[pts.length - 1];
+  s.lastRaw = { ...last }; s.sp = last; s.len = last.d;
+  replayStroke(s); s.total = null;
+  if (s.direct || s.clipped) scheduleLive();
+}
+function tryQuickShape(s) {
+  if (stroke !== s || s.shape || s.pts.length < 4 || s.len * viewScale() < 40) return;
+  const P = s.pts, a = P[0], z = s.lastRaw || P[P.length - 1];
+  const closed = Math.hypot(z.x - a.x, z.y - a.y) < Math.max(0.22 * s.len, 24 / viewScale());
+  if (!closed) s.shape = { type: 'line', a: { x: a.x, y: a.y }, b: { x: z.x, y: z.y } };
+  else {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    P.forEach(q => { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); });
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = (x1 - x0) / 2, ry = (y1 - y0) / 2;
+    // ¿se parece más a una elipse o a un rectángulo?
+    let eE = 0, eR = 0;
+    P.forEach(q => { const dx = (q.x - cx) / (rx || 1), dy = (q.y - cy) / (ry || 1); eE += Math.abs(Math.hypot(dx, dy) - 1); eR += Math.abs(Math.max(Math.abs(dx), Math.abs(dy)) - 1); });
+    if (eR < eE * 0.75) s.shape = { type: 'rect', x0, y0, x1, y1 };
+    else { const round = Math.abs(rx - ry) < 0.12 * Math.max(rx, ry), r = (rx + ry) / 2;
+      s.shape = { type: 'ellipse', cx, cy, rx: round ? r : rx, ry: round ? r : ry, t0: Math.atan2(a.y - cy, a.x - cx) }; }
+  }
+  applyShape(s);
+  toast(s.shape.type === 'line' ? '📏 Línea recta · mové el dedo para ajustarla' : s.shape.type === 'rect' ? '▭ Rectángulo' : '◯ ' + (s.shape.rx === s.shape.ry ? 'Círculo' : 'Elipse'), 1400);
+}
+function shapeFollow(s, c) {   // con la línea recta armada, el dedo mueve la punta final
+  if (s.shape.type !== 'line') return;
+  s.shape.b = { x: c.x, y: c.y }; applyShape(s);
+}
+
+/* =====================================================================
+   PIXEL ART: línea, rectángulo, elipse y cambiar un color
+   ===================================================================== */
+const PIX_TOOLS = ['pxline', 'pxrect', 'pxellipse', 'pxreplace'];
+const PIX_TYPES = [{ t: 'brush', ico: '✏️', name: 'Lápiz pixel' }, { t: 'pxline', ico: '📏', name: 'Línea' }, { t: 'pxrect', ico: '▭', name: 'Rectángulo' },
+  { t: 'pxellipse', ico: '◯', name: 'Elipse' }, { t: 'pxreplace', ico: '🎯', name: 'Cambiar color' }];
+function ellipseRows(x0, y0, x1, y1) {   // elipse dentro de un rectángulo (algoritmo de Zingl), por filas
+  const rows = new Map(), put = (x, y) => { const r = rows.get(y); if (r) { r[0] = Math.min(r[0], x); r[1] = Math.max(r[1], x); r.push(x); } else rows.set(y, [x, x, x]); };
+  let a = Math.abs(x1 - x0), b = Math.abs(y1 - y0), b1 = b & 1;
+  let dx = 4 * (1 - a) * b * b, dy = 4 * (b1 + 1) * a * a, err = dx + dy + b1 * a * a, e2;
+  if (x0 > x1) { x0 = x1; x1 += a; } if (y0 > y1) y0 = y1;
+  y0 += (b + 1) >> 1; y1 = y0 - b1; a *= 8 * a; b1 = 8 * b * b;
+  do { put(x1, y0); put(x0, y0); put(x0, y1); put(x1, y1);
+    e2 = 2 * err; if (e2 <= dy) { y0++; y1--; err += dy += a; } if (e2 >= dx || 2 * err > dy) { x0++; x1--; err += dx += b1; }
+  } while (x0 <= x1);
+  while (y0 - y1 <= b) { put(x0 - 1, y0); put(x1 + 1, y0++); put(x0 - 1, y1); put(x1 + 1, y1--); }
+  return rows;
+}
+function pixelShape(pt) {
+  const s = stroke, n = Math.max(1, Math.round(s.size)), o = Math.floor((n - 1) / 2), m = settings.mirror;
+  const xi = Math.floor(pt.x), yi = Math.floor(pt.y);
+  if (!s.pxStart) s.pxStart = [xi, yi];
+  const [x0, y0] = s.pxStart;
+  sctx.clearRect(0, 0, W, H); sctx.fillStyle = s.color;
+  const rect = (x, y, w, h) => {
+    const list = [[x, y]];
+    if (m === 'x' || m === 'xy') list.push([W - x - w, y]);
+    if (m === 'y' || m === 'xy') list.push([x, H - y - h]);
+    if (m === 'xy') list.push([W - x - w, H - y - h]);
+    for (const [ax, ay] of list) { sctx.fillRect(ax, ay, w, h); grow(ax + w / 2, ay + h / 2, Math.max(w, h) / 2 + 1); }
+  };
+  const plot = (x, y) => rect(x - o, y - o, n, n);
+  const line = (ax, ay, bx, by) => {
+    const dx = Math.abs(bx - ax), dy = -Math.abs(by - ay), sx = ax < bx ? 1 : -1, sy = ay < by ? 1 : -1; let err = dx + dy;
+    for (;;) { plot(ax, ay); if (ax === bx && ay === by) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; ax += sx; } if (e2 <= dx) { err += dx; ay += sy; } }
+  };
+  if (s.tool === 'pxline') line(x0, y0, xi, yi);
+  else if (s.tool === 'pxrect') {
+    const ax = Math.min(x0, xi), bx = Math.max(x0, xi), ay = Math.min(y0, yi), by = Math.max(y0, yi);
+    if (settings.pxFill) rect(ax, ay, bx - ax + 1, by - ay + 1);
+    else { line(ax, ay, bx, ay); line(bx, ay, bx, by); line(bx, by, ax, by); line(ax, by, ax, ay); }
+  } else {
+    const rows = ellipseRows(x0, y0, xi, yi);
+    for (const [y, r] of rows) { if (settings.pxFill) rect(r[0], y, r[1] - r[0] + 1, 1); else for (let i = 2; i < r.length; i++) plot(r[i], y); }
+  }
+}
+async function doReplace(p) {
+  const l = layers[activeIndex]; if (isLocked(l)) return;
+  if (!l.visible || !folderVisible(l)) return toast('La capa activa (o su carpeta) está oculta');
+  const c = toCanvas(p), x = Math.floor(c.x), y = Math.floor(c.y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const src = l.anim ? cellAt(l, curF) : l.canvas; if (!src) return toast('En este cuadro no hay dibujo');
+  const t = src.getContext('2d').getImageData(x, y, 1, 1).data;
+  if (t[3] === 0) return toast('Ahí no hay color para cambiar');
+  let targets = [src];
+  if (l.anim && l.cells.size > 1) {
+    const v = await dialog({ title: '🎯 Cambiar color', text: '¿Dónde cambiar ese color?', ok: null, choices: [{ label: 'Solo en este cuadro', value: 'one' }, { label: 'En todos los cuadros de la capa', value: 'all' }] });
+    if (!v) return; if (v === 'all') targets = [...l.cells.values()];
+  }
+  const [nr, ng, nb] = hexToRgb(settings.color), before = [], after = [];
+  for (const cv of targets) {
+    const ctx = cv.getContext('2d'), im = ctx.getImageData(0, 0, W, H), d = im.data; before.push(new ImageData(new Uint8ClampedArray(d), W, H));
+    for (let i = 0; i < d.length; i += 4) if (d[i] === t[0] && d[i + 1] === t[1] && d[i + 2] === t[2] && d[i + 3] === t[3]) { d[i] = nr; d[i + 1] = ng; d[i + 2] = nb; d[i + 3] = 255; }
+    ctx.putImageData(im, 0, 0); after.push(im); cellDirty.add(cv);
+  }
+  const apply = arr => { targets.forEach((cv, i) => { cv.getContext('2d').putImageData(arr[i], 0, 0); cellDirty.add(cv); }); layerChanged(l); requestRender(); };
+  layerChanged(l); requestRender(); pushRecent(settings.color);
+  pushHistory({ bytes: targets.length * W * H * 8, undo() { apply(before); }, redo() { apply(after); } });
+  toast(`🎯 Color cambiado${targets.length > 1 ? ` en ${targets.length} cuadros` : ''}`, 1400);
+}
+
+/* =====================================================================
+   SIMETRÍA en el dibujo normal: espejo ↔ ↕ ✚ y radial (6 u 8 copias)
+   ===================================================================== */
+function symOn() { return !pixelMode && settings.sym && settings.sym !== 'none'; }
+function symMats() {
+  const cx = W / 2, cy = H / 2, s = settings.sym, out = [];
+  const fx = new DOMMatrix().translate(cx, 0).scale(-1, 1).translate(-cx, 0), fy = new DOMMatrix().translate(0, cy).scale(1, -1).translate(0, -cy);
+  if (s === 'x' || s === 'xy') out.push(fx);
+  if (s === 'y' || s === 'xy') out.push(fy);
+  if (s === 'xy') out.push(fx.multiply(fy));
+  if (s[0] === 'r') { const n = +s.slice(1); for (let k = 1; k < n; k++) out.push(new DOMMatrix().translate(cx, cy).rotate(k * 360 / n).translate(-cx, -cy)); }
+  return out;
+}
+const symStroke = st => st && symOn() && !['smudge', 'gradient'].includes(st.tool) && !PIX_TOOLS.includes(st.tool);
+let symTmp = null;
+function symUnion() {   // el trazo y sus copias, juntos en una sola imagen
+  if (!symTmp) symTmp = document.createElement('canvas');
+  if (symTmp.width !== W || symTmp.height !== H) { symTmp.width = W; symTmp.height = H; }
+  const x = symTmp.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, W, H); x.drawImage(strokeCanvas, 0, 0);
+  for (const M of symMats()) { x.setTransform(M); x.drawImage(strokeCanvas, 0, 0); }
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  return symTmp;
+}
+function symBox(b) {   // la zona que ocupa el trazo con sus copias
+  if (!b) return b;
+  let x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h;
+  for (const M of symMats()) for (const [px, py] of [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]]) {
+    const q = M.transformPoint(new DOMPoint(px, py)); x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+  }
+  return clampBox([x0 - 2, y0 - 2, x1 + 2, y1 + 2]);
+}
+const symUi = document.createElementNS(SVGNS, 'svg'); symUi.id = 'sym-ui'; viewport.appendChild(symUi);
+function updateSymUi() {
+  if (!symOn() || document.body.classList.contains('at-home')) { if (symUi.firstChild) symUi.innerHTML = ''; return; }
+  const T = (a, b) => { const q = view.transformPoint({ x: a, y: b }); return `${q.x.toFixed(1)},${q.y.toFixed(1)}`; };
+  const cx = W / 2, cy = H / 2, s = settings.sym, R = Math.hypot(W, H);
+  let d = '';
+  if (s === 'x' || s === 'xy') d += `M${T(cx, 0)}L${T(cx, H)}`;
+  if (s === 'y' || s === 'xy') d += `M${T(0, cy)}L${T(W, cy)}`;
+  if (s[0] === 'r') { const n = +s.slice(1); for (let k = 0; k < n; k++) { const a = k * Math.PI * 2 / n - Math.PI / 2; d += `M${T(cx, cy)}L${T(cx + Math.cos(a) * R, cy + Math.sin(a) * R)}`; } }
+  const page = [T(0, 0), T(W, 0), T(W, H), T(0, H)].join(' ');
+  symUi.innerHTML = `<defs><clipPath id="sym-clip"><polygon points="${page}"/></clipPath></defs><path d="${d}" clip-path="url(#sym-clip)" stroke="#b46bff" stroke-width="1.5" stroke-dasharray="8 6" fill="none" opacity=".85"/>`;
+}
+function setSym(v) {
+  settings.sym = v; saveSettings(); updateSymUi(); updateSymUI();
+  if (v !== 'none') toast({ x: '↔ Simetría: lo que dibujás se copia del otro lado', y: '↕ Simetría arriba y abajo', xy: '✚ Simetría en cuatro', r6: '❋ Simetría radial de 6', r8: '❋ Simetría radial de 8' }[v], 2200);
+}
+function updateSymUI() { document.querySelectorAll('[data-sym]').forEach(b => b.classList.toggle('on', b.dataset.sym === (settings.sym || 'none'))); }
 
 /* ---------------- Exportar / guardar / abrir ---------------- */
 function blobToBase64(blob) {
@@ -5504,7 +5814,7 @@ function showHome() {
   $('home').scrollTop = 0;
 }
 function hideHome() {
-  setTimeout(markScreen, 0);
+  setTimeout(() => { markScreen(); updateSymUi(); }, 0);
   $('home').hidden = true; document.body.classList.remove('at-home');
   $('mi-proj').textContent = curProject ? `${(KINDS[curProject.kind] || KINDS.draw).ico} ${curProject.name}` : '';
   try { localStorage.setItem('tokers.last', curProject ? curProject.id : ''); } catch (e) {}
@@ -5732,8 +6042,8 @@ function setupUI() {
   toolBtns.forEach(b => b.addEventListener('click', () => {
     const t = b.dataset.tool;
     if (t === 'brush') {      // el pincel activo se toca otra vez para elegir el tipo y sus opciones
-      if (BRUSH_FAMILY.includes(settings.tool)) togglePanel('brush', settings.tool === 'gradient' ? 'mix' : 'brush');
-      else { setTool(settings.brushType || 'brush'); closePanels(); }
+      if (BRUSH_FAMILY.includes(settings.tool) || PIX_TOOLS.includes(settings.tool)) togglePanel('brush', settings.tool === 'gradient' ? 'mix' : 'brush');
+      else { setTool(pixelMode ? (settings.pxTool || 'brush') : (settings.brushType || 'brush')); closePanels(); }
       return;
     }
     if (t === settings.tool && t === 'eraser') return togglePanel('brush', 'brush');
@@ -5804,10 +6114,19 @@ function setupUI() {
     toast(P.snap ? '🧲 Los trazos siguen las líneas hacia los puntos de fuga' : 'Trazos libres (la guía queda de referencia)', 2600); };
   $('pg-reset').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P); const d = perspDefaults(P.mode); P.vps = d.concat(perspDefaults(3).slice(d.length)); perspChanged(before); };
   $('pg-done').onclick = closePerspBar;
+  // simetría, formas rápidas, relleno de formas pixel
+  document.querySelectorAll('[data-sym]').forEach(b => b.onclick = () => setSym(b.dataset.sym));
+  updateSymUI();
+  $('chk-qshape').checked = settings.quickShape !== false;
+  $('chk-qshape').onchange = e => { settings.quickShape = e.target.checked; saveSettings(); };
+  $('chk-pxfill').onchange = e => { settings.pxFill = e.target.checked; saveSettings(); };
   // historieta
   const cmActs = { page: pageTemplate, panel: addPanel, talk: () => addBalloon('talk'), think: () => addBalloon('think'), shout: () => addBalloon('shout'),
     narr: () => addBalloon('narr'), whisper: () => addBalloon('whisper'), text: comicEditText, smaller: () => comicFont(1 / 1.15), bigger: () => comicFont(1.15),
-    front: comicToFront, dup: comicDuplicate, del: comicDelete, done: () => { comicSel = null; setTool(settings.brushType || 'brush'); } };
+    front: comicToFront, dup: comicDuplicate, del: comicDelete,
+    inside: () => { const pnl = comicSel && findComic(comicSel); if (!pnl || isBalloon(pnl)) return;
+      setSelection({ pts: pnl.pts.map(q => [q[0], q[1]]), inverted: false }); comicSel = null; setTool(settings.brushType || 'brush');
+      toast('🖌️ Dibujás solo dentro de la viñeta. Para salir, tocá ✕ Quitar en la barra de abajo', 3500); }, done: () => { comicSel = null; setTool(settings.brushType || 'brush'); } };
   document.querySelectorAll('[data-cmc]').forEach(b => b.onclick = () => cmActs[b.dataset.cmc]());
   // selección y transformación
   document.querySelectorAll('[data-selmode]').forEach(b => b.onclick = () => { settings.selMode = b.dataset.selmode; saveSettings(); updateBars(); });
@@ -5857,7 +6176,7 @@ function setupUI() {
     open: () => $('file-project').click(), install: installApp, help: showHelp,
     intro: () => { settings.introVideo = !settings.introVideo; saveSettings(); updateIntroLabel();
       toast(settings.introVideo ? 'El video se va a ver al abrir la app' : 'La app va a abrir solo con el logo'); },
-    lib: openLibrary, size: resizeCanvasDialog, fit: fitView, flip: flipView, video: exportVideo, sprites: exportSprites,
+    lib: openLibrary, size: resizeCanvasDialog, fit: fitView, flip: flipView, video: exportVideo, sprites: exportSprites, gif: exportGIF,
     crop: () => { if (animMode) setAnimMode(null); setTool('select'); toast(selection ? 'Tocá ⛶ Recortar lienzo' : 'Marcá con el dedo la zona que querés conservar y tocá ⛶ Recortar lienzo', 3500); } };
   document.querySelectorAll('.mitem').forEach(b => b.onclick = () => { closePanels(); menu[b.dataset.menu](); });
   $('file-image').onchange = e => { importImageFile(e.target.files[0]); e.target.value = ''; };
