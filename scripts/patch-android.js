@@ -24,7 +24,7 @@ edit('app/src/main/res/values/styles.xml', s => {
   if (s.includes('windowSplashScreenBackground')) return s;
   return s.replace(
     '<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">',
-    '<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">\n        <item name="windowSplashScreenBackground">#121215</item>'
+    '<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">\n        <item name="windowSplashScreenBackground">#0a0d0b</item>'
   );
 });
 

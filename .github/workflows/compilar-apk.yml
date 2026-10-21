@@ -34,7 +34,7 @@ jobs:
         run: |
           rm -rf android
           npx cap add android
-          npx capacitor-assets generate --android --iconBackgroundColor '#104a2c' --iconBackgroundColorDark '#104a2c' --splashBackgroundColor '#121215' --splashBackgroundColorDark '#121215'
+          npx capacitor-assets generate --android --iconBackgroundColor '#104a2c' --iconBackgroundColorDark '#104a2c' --splashBackgroundColor '#0a0d0b' --splashBackgroundColorDark '#0a0d0b'
           node scripts/patch-android.js
           npx cap sync android
 

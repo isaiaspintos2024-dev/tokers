@@ -3,7 +3,7 @@
   "appName": "Toker's",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#121215"
+    "backgroundColor": "#0a0d0b"
   },
   "plugins": {
     "SystemBars": {

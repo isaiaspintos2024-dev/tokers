@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Toker's</title>
 <meta name="description" content="Toker's — estudio de dibujo y pintura con capas para el celular">
-<meta name="theme-color" content="#121215">
+<meta name="theme-color" content="#0a0d0b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,8 +15,8 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
-  --bg:#121215; --panel:#1d1d22; --panel2:#2a2a31; --line:#36363f; --text:#ececf1; --muted:#9a9aa6;
-  --accent:#ff6a3d; --accent2:#ffc53d; --pink:#ff3d7f; --danger:#e5484d;
+  --bg:#0a0d0b; --panel:#131915; --panel2:#1d2620; --line:#2b3a30; --text:#eef4ef; --muted:#93a399;
+  --accent:#19a453; --accent2:#ffd23f; --pink:#8fe36b; --danger:#e5484d; --accent-bg:#14301f;
   --btn:50px; --btnh:52px; --tb:66px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -54,6 +54,11 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
   background-image:conic-gradient(#d9d9d9 25%,#fff 0 50%,#d9d9d9 0 75%,#fff 0);background-size:64px 64px}
 #canvas-wrapper canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 #sel-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:9999}
+#comic-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:7000}
+.tool[data-tool=comic]{display:none}
+body.has-comic .tool[data-tool=comic]{display:flex}
+#comicbar textarea{display:none}
+.mcard textarea{width:100%;margin:10px 0 6px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px;resize:vertical;font-family:inherit;-webkit-user-select:text;user-select:text}
 #sel-svg path{fill:none;stroke-linejoin:round}
 #sel-a{stroke:#fff;stroke-width:var(--sw,3)}
 #sel-b{stroke:#111;stroke-width:var(--sw,3);stroke-dasharray:var(--dash,8) var(--dash,8);animation:ants .7s linear infinite}
@@ -87,6 +92,9 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 .vs-sep{width:30px;height:1px;background:var(--line);margin:4px 0}
 #qs .dot-box{width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;background:repeating-conic-gradient(#ffffff22 0 25%,#0000 0 50%) 50%/8px 8px}
 #qs .size-dot{flex:none;pointer-events:none}
+#loupe{position:absolute;z-index:30;pointer-events:none;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 6px 14px #000a)}
+#loupe[hidden]{display:none}
+#loupe-hex{position:absolute;top:104px;font-size:10px;font-weight:700;color:#fff;letter-spacing:.04em;text-shadow:0 1px 2px #000}
 #vs-bubble{position:absolute;left:66px;z-index:16;padding:6px 10px;border-radius:10px;background:#000d;color:#fff;font-size:15px;font-weight:700;
   pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;transform:translateY(-50%)}
 #vs-bubble.show{opacity:1}
@@ -99,7 +107,7 @@ body.anim #qs{top:58px}
 .btypes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
 .btype{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:10px;background:var(--panel2);border:2px solid transparent;font-size:11px;color:#d6d6de}
 .btype i{font-style:normal;font-size:20px;line-height:1}
-.btype.on{border-color:var(--accent);background:#3a2922}
+.btype.on{border-color:var(--accent);background:var(--accent-bg)}
 body.pixel .nopix{display:none!important}
 .palsel{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px;padding-bottom:2px}
 .palsel::-webkit-scrollbar{display:none}
@@ -116,6 +124,7 @@ body.pixel .nopix{display:none!important}
 .bar button{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 7px;border-radius:10px;
   font-size:10.5px;color:#d6d6de;min-width:56px}
 .bar button span{font-size:18px;line-height:1.2}
+.bar button b{font-weight:inherit}
 .bar button.on{background:var(--accent);color:#fff}
 .bar button:disabled{opacity:.3}
 .bar button.ok{background:#2f9e5a;color:#fff}
@@ -196,7 +205,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 #layers-head .ptitle{margin:0;flex:1}
 #layers-list{flex:1 1 auto;min-height:70px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:2px}
 .lrow{display:flex;align-items:center;gap:10px;padding:6px;border-radius:12px;background:var(--panel2);border:2px solid transparent;cursor:pointer}
-.lrow.active{border-color:var(--accent);background:#3a2922}
+.lrow.active{border-color:var(--accent);background:var(--accent-bg)}
 .lrow.clipped{margin-left:20px;position:relative}
 .lrow.clipped::before{content:"↳";position:absolute;left:-17px;color:var(--accent2);font-weight:700}
 .lthumb{width:52px;height:52px;flex:none;border-radius:8px;overflow:hidden;
@@ -204,8 +213,15 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .lthumb canvas{width:100%;height:100%;display:block}
 .lrow.off .lthumb{opacity:.3}
 .llock{opacity:.45}
+.frow{background:#172219;border-style:solid}
+.frow .fico{font-size:24px;width:30px;text-align:center;flex:none}
+.frow .fchev{width:26px;font-size:16px;color:var(--muted)}
+.lrow.infolder{margin-left:18px;position:relative}
+.lrow.infolder::before{content:"";position:absolute;left:-11px;top:-6px;bottom:-6px;border-left:2px solid #2f5a42}
+.lrow.infolder.clipped{margin-left:38px}
+#layers-panel.folder-sel #layer-actions button:not([data-act=up]):not([data-act=down]):not([data-act=fx]):not([data-act=rename]):not([data-act=delete]):not([data-act=import]){opacity:.35}
 .lrow.locked .llock{opacity:1}
-.lrow.locked .lthumb{outline:2px dashed #ffb35a;outline-offset:-2px}
+.lrow.locked .lthumb{outline:2px dashed #ffd23f;outline-offset:-2px}
 .linfo{flex:1;min-width:0}
 .lname{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lmeta{font-size:11px;color:var(--muted)}
@@ -241,7 +257,8 @@ body.am-rig{--tbh:0px!important}
 .tbtn{flex:none;width:36px;height:38px;border-radius:10px;background:var(--panel2);font-size:16px;display:flex;align-items:center;justify-content:center;color:#e6e6ee}
 .tbtn.play{width:46px;background:#2f9e5a;color:#fff;font-size:17px}
 #dock-a .drow-in{gap:3px}
-@media (max-width:380px){ #an-first,#an-last{display:none} }
+@media (max-width:440px){ #an-first,#an-last{display:none} }
+@media (max-width:340px){ #an-size{display:none} }
 .tbtn.on{background:var(--accent);color:#fff}
 #fr-label{flex:1;min-width:44px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums;font-size:15px;color:var(--accent2);line-height:1.05}
 #fr-label small{display:block;font-weight:500;color:var(--muted);font-size:10px}
@@ -264,7 +281,7 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
 #tl-names{flex:none;width:96px;background:#1a1a1f;border-right:1px solid var(--line)}
 #tl-names div{height:30px;line-height:30px;font-size:12px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#cfcfd8;cursor:pointer}
 #tl-names .hd{height:24px;line-height:24px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;background:#16161a;font-size:11px}
-#tl-names .sel{background:#3a2922;color:#fff;font-weight:700}
+#tl-names .sel{background:var(--accent-bg);color:#fff;font-weight:700}
 #tl-names .cellrow{color:#ffd98a}
 #tl-names .cellrow.sel{background:#3a3220}
 #tl-names .au{height:32px;line-height:32px;color:#7fd6de}
@@ -327,7 +344,7 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
 
 /* ---------- Pantalla de inicio ---------- */
 #splash{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 45%,#2b1a14 0%,#121215 62%);transition:opacity .7s ease}
+  background:radial-gradient(circle at 50% 45%,#10301d 0%,#0a0d0b 62%);transition:opacity .7s ease}
 #splash.hide{opacity:0;pointer-events:none}
 #splash.video{background:#000}
 #splash-logo{display:flex;flex-direction:column;align-items:center}
@@ -369,7 +386,7 @@ body.has-bar #toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 
 /* ---------- Inicio: mis proyectos ---------- */
 #home{position:fixed;inset:0;z-index:80;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  background:radial-gradient(120% 60% at 50% -8%,#3a2018 0%,#121215 60%);
+  background:radial-gradient(120% 60% at 50% -8%,#12361f 0%,#0a0d0b 60%);
   padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px))}
 #home[hidden]{display:none}
 body.at-home #toolbar,body.at-home #stage{visibility:hidden}
@@ -377,20 +394,22 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 .home-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .home-brand{display:flex;align-items:center;gap:12px}
 .home-brand img{width:58px;height:58px;filter:drop-shadow(0 4px 10px #0009)}
-.home-logo{font-size:34px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,#ffc53d,#ff6a3d 55%,#ff3d7f);
+.home-logo{font-size:34px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,#ffd23f,#3fd47a 55%,#19a453);
   -webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.1}
 .home-logo small{display:block;font-size:11px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);-webkit-text-fill-color:var(--muted)}
 .home-h{display:flex;align-items:baseline;gap:6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:22px 0 10px;font-weight:700}
 .home-h span{letter-spacing:0}
 .home-h .grow{flex:1}
 .hbtn2{padding:9px 13px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-size:13px;color:var(--text);letter-spacing:0;text-transform:none;font-weight:600}
-.newcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.newcards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:640px){ .newcards{grid-template-columns:repeat(2,1fr)} }
 .newcard{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;border-radius:18px;background:var(--panel);border:1px solid var(--line);text-align:left;transition:transform .12s}
 .newcard:active{transform:scale(.97)}
 .newcard i{font-style:normal;font-size:28px;width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
-.newcard[data-new=draw] i{background:linear-gradient(135deg,#ff6a3d,#ffc53d)}
-.newcard[data-new=pixel] i{background:linear-gradient(135deg,#1fbf5b,#29adff)}
-.newcard[data-new=anim] i{background:linear-gradient(135deg,#ff3d7f,#8b5cf6)}
+.newcard[data-new=draw] i{background:linear-gradient(135deg,#19a453,#ffd23f)}
+.newcard[data-new=pixel] i{background:linear-gradient(135deg,#0f6b3a,#3fd47a)}
+.newcard[data-new=anim] i{background:linear-gradient(135deg,#1d2620,#19a453)}
+.newcard[data-new=comic] i{background:linear-gradient(135deg,#ffd23f,#8fe36b)}
 .newcard b{font-size:17px;color:var(--text)}
 .newcard small{font-size:12px;color:var(--muted);line-height:1.3}
 @media (max-width:440px){ .newcard{align-items:center;text-align:center;padding:12px 6px} .newcard i{width:48px;height:48px;font-size:25px} .newcard b{font-size:15px} .newcard small{font-size:11px} }
@@ -423,7 +442,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
     <img class="logo-img" src="logo.png" alt="">
     <div class="logo">Toker's</div>
     <svg class="logo-stroke" viewBox="0 0 420 40" aria-hidden="true">
-      <defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#ffc53d"/><stop offset=".55" stop-color="#ff6a3d"/><stop offset="1" stop-color="#ff3d7f"/></linearGradient></defs>
+      <defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#ffd23f"/><stop offset=".55" stop-color="#3fd47a"/><stop offset="1" stop-color="#19a453"/></linearGradient></defs>
       <path d="M14 26 C 90 8, 170 34, 250 18 S 370 8, 406 20" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/>
     </svg>
     <div class="logo-sub">Estudio de dibujo</div>
@@ -445,6 +464,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button class="newcard" data-new="draw"><i>🎨</i><b>Dibujar</b><small>Ilustración, pintura y bocetos</small></button>
       <button class="newcard" data-new="pixel"><i>👾</i><b>Pixel art</b><small>Píxel por píxel, para juegos</small></button>
       <button class="newcard" data-new="anim"><i>🎬</i><b>Animación</b><small>Cuadro a cuadro o con huesos</small></button>
+      <button class="newcard" data-new="comic"><i>💬</i><b>Historieta</b><small>Viñetas y globos de diálogo</small></button>
     </div>
     <div class="home-h">Mis proyectos <span id="home-count"></span><span class="grow"></span><button class="hbtn2" id="home-open">📂 Abrir archivo</button></div>
     <div class="plist" id="home-list"></div>
@@ -463,6 +483,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
     <button class="tool" data-tool="picker" title="Cuentagotas (I)"><i>💧</i><small>Gotero</small></button>
     <button class="tool" data-tool="select" title="Seleccionar (S)"><i><span class="ico-sel"></span></i><small>Elegir</small></button>
     <button class="tool" data-tool="pan" title="Mover la hoja (H)"><i>✋</i><small>Mano</small></button>
+    <button class="tool" data-tool="comic" title="Historieta: viñetas y globos"><i>💬</i><small>Cómic</small></button>
     <div class="tb-sep"></div>
     <button class="tool" id="btn-color" title="Color"><i><span class="color-dot" id="color-dot"></span></i><small>Color</small></button>
   </div>
@@ -484,6 +505,17 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       </div>
     </div>
     <div id="vs-bubble"></div>
+    <div id="loupe" hidden>
+      <svg viewBox="0 0 100 150" width="96" height="144" aria-hidden="true">
+        <defs><pattern id="lp-chk" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#fff"/><rect width="5" height="5" fill="#ccc"/><rect x="5" y="5" width="5" height="5" fill="#ccc"/></pattern></defs>
+        <path d="M50 146 C 34 116, 6 92, 6 52 A44 44 0 1 1 94 52 C 94 92, 66 116, 50 146 Z" fill="#101512" stroke="#fff" stroke-width="3"/>
+        <path id="loupe-old" d="M18 52 A32 32 0 0 0 82 52 Z" fill="#000"/>
+        <circle id="loupe-new" cx="50" cy="52" r="26" fill="#000" stroke="#fff" stroke-width="3"/>
+        <path id="loupe-none" d="M34 36 L66 68 M66 36 L34 68" stroke="#e5484d" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="50" cy="146" r="2.5" fill="#fff" stroke="#000" stroke-width="1"/>
+      </svg>
+      <div id="loupe-hex"></div>
+    </div>
 
     <div class="hud" id="hud-left">
       <button class="hbtn" id="btn-undo" title="Deshacer (Ctrl+Z)">↶</button>
@@ -528,6 +560,27 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button data-xa="ok" class="ok"><span>✓</span>Listo</button>
     </div>
 
+    <!-- Barra de historieta -->
+    <div class="bar" id="comicbar" hidden>
+      <button data-cmc="page"><span>▦</span>Página</button>
+      <button data-cmc="panel"><span>▭</span>Viñeta</button>
+      <div class="vsep"></div>
+      <button data-cmc="talk"><span>💬</span>Diálogo</button>
+      <button data-cmc="think"><span>💭</span>Pensar</button>
+      <button data-cmc="shout"><span>💥</span>Grito</button>
+      <button data-cmc="narr"><span>📜</span>Narración</button>
+      <button data-cmc="whisper"><span>🤫</span>Susurro</button>
+      <div class="vsep"></div>
+      <div class="bhint" id="cm-hint">Tocá una viñeta o un globo para editarlo</div>
+      <button data-cmc="text" data-cmbal><span>✏️</span>Texto</button>
+      <button data-cmc="smaller" data-cmsel><span>−</span><b id="cm-minus-l">Más chico</b></button>
+      <button data-cmc="bigger" data-cmsel><span>+</span><b id="cm-plus-l">Más grande</b></button>
+      <button data-cmc="front" data-cmsel><span>⬆️</span>Adelante</button>
+      <button data-cmc="dup" data-cmsel><span>⧉</span>Copiar</button>
+      <button data-cmc="del" data-cmsel><span>🗑️</span>Borrar</button>
+      <button data-cmc="done" class="ok"><span>✓</span>Listo</button>
+    </div>
+
     <!-- Panel de animación -->
     <div id="animdock">
       <div class="drow" id="dock-a">
@@ -535,6 +588,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
           <button class="tbtn" id="an-first" title="Primer cuadro">⏮</button>
           <button class="tbtn" id="an-prev" title="Cuadro anterior">‹</button>
           <button class="tbtn play" id="an-play" title="Reproducir">▶</button>
+          <button class="tbtn" id="an-loop" title="Repetir en bucle">🔁</button>
           <button class="tbtn" id="an-next" title="Cuadro siguiente">›</button>
           <button class="tbtn" id="an-last" title="Último cuadro">⏭</button>
           <div id="fr-label">1<small>de 36</small></div>
@@ -677,9 +731,11 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="hbtn" id="btn-add-layer" title="Nueva capa">＋</button>
       </div>
       <div id="layers-list"></div>
-      <div class="field" style="margin:8px 0 0"><label>Opacidad de la capa <b id="lop-val">100%</b></label><input type="range" id="lop-range" min="0" max="100"></div>
+      <div class="field" style="margin:8px 0 0"><label><span id="lop-label">Opacidad de la capa</span> <b id="lop-val">100%</b></label><input type="range" id="lop-range" min="0" max="100"></div>
       <div id="layer-actions">
         <button data-act="clip" id="act-clip"><span>🔗</span>Recorte</button>
+        <button data-act="folder"><span>📁</span>Carpeta</button>
+        <button data-act="fx" id="act-fx"><span>✨</span>Efectos</button>
         <button data-act="up"><span>⬆️</span>Subir</button>
         <button data-act="down"><span>⬇️</span>Bajar</button>
         <button data-act="dup"><span>⧉</span>Duplicar</button>
@@ -696,7 +752,8 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
     <!-- Menú -->
     <div class="panel" id="menu-panel">
       <div id="mi-proj"></div>
-      <button class="mitem" data-menu="home"><span>🏠</span>Mis proyectos / Nuevo</button>
+      <button class="mitem" data-menu="newwork"><span>📄</span>Nuevo trabajo…</button>
+      <button class="mitem" data-menu="home"><span>🏠</span>Mis proyectos</button>
       <div class="msec">Archivo</div>
       <button class="mitem" data-menu="save"><span>📦</span>Guardar copia (archivo .tokers)</button>
       <button class="mitem" data-menu="open"><span>📂</span>Abrir archivo de proyecto</button>
@@ -705,6 +762,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button class="mitem" data-menu="export"><span>💾</span>Exportar imagen (PNG)</button>
       <button class="mitem" data-menu="video"><span>🎞️</span>Exportar animación (video)</button>
       <button class="mitem" data-menu="sprites"><span>🧱</span>Hoja de sprites (para juegos)</button>
+      <button class="mitem" data-menu="comic"><span>💬</span>Historieta: viñetas y globos</button>
       <div class="msec">Lienzo</div>
       <button class="mitem" data-menu="size"><span>📐</span>Tamaño del lienzo…</button>
       <button class="mitem" data-menu="crop"><span>⛶</span>Recortar el lienzo</button>
@@ -740,7 +798,7 @@ const viewport = $('viewport');
 
 // Límites según la memoria del dispositivo (cada capa de 2048 px ocupa ~16 MB)
 const MEM = navigator.deviceMemory || 4;
-const MAX_LAYERS = MEM <= 2 ? 6 : MEM <= 4 ? 10 : 16;
+const MAX_LAYERS = MEM <= 2 ? 20 : MEM <= 4 ? 30 : 40;
 const HISTORY_MAX_STEPS = 40;
 const HISTORY_MAX_BYTES = (MEM <= 2 ? 48 : MEM <= 4 ? 96 : 160) * 1024 * 1024;
 const isTouchDevice = matchMedia('(pointer: coarse)').matches;
@@ -880,7 +938,7 @@ function createLayer(name, fillWhite = false) {
   if (fillWhite) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); }
   const thumb = makeCanvas(64, 64);
   return { id: layerSeq++, name, canvas, ctx, thumb, thumbCtx: thumb.getContext('2d'),
-    opacity: 1, visible: true, clip: false, disp: null, dispCtx: null, dirty: true, blob: null };
+    opacity: 1, visible: true, clip: false, disp: null, dispCtx: null, dirty: true, blob: null, folder: undefined, fx: null };
 }
 function nextLayerName() {
   let n = 1; const names = new Set(layers.map(l => l.name));
@@ -888,6 +946,7 @@ function nextLayerName() {
   return 'Capa ' + n;
 }
 function insertLayer(layer, index) {
+  if (layer.folder === undefined) { const prev = layers[index - 1]; layer.folder = prev && prev.folder ? prev.folder : null; }   // una capa nueva queda en la carpeta de la de abajo
   layers.splice(index, 0, layer);
   wrapper.insertBefore(layer.canvas, selSvg);
   if (layer.anim) showCell(layer);
@@ -911,7 +970,7 @@ function updateThumb(l) {
 function baseOfIndex(i) { for (let j = i - 1; j >= 0; j--) if (!layers[j].clip) return layers[j]; return null; }
 function clipBase(l) { const i = layers.indexOf(l); return (l.clip && i > 0) ? baseOfIndex(i) : null; }
 const visualCanvas = l => (clipBase(l) && l.disp) ? l.disp : l.canvas;
-function isShown(l) { const b = clipBase(l); return l.visible && l.opacity > 0 && (!b || b.visible); }
+function isShown(l) { const b = clipBase(l), F = folderById(l.folder); return l.visible && l.opacity > 0 && (!b || b.visible) && (!F || (F.visible && F.opacity > 0)); }
 function renderClip(l, box) {
   const base = clipBase(l); if (!base) return;
   let created = false;
@@ -939,11 +998,197 @@ function layerChanged(l) {
   scheduleSave();
 }
 
+/* ---- Carpetas de capas y efectos ----
+   Cada capa puede estar en una carpeta (l.folder = id). Las capas de una carpeta van siempre juntas.
+   La carpeta suma su visibilidad, opacidad, bloqueo y efectos a los de cada capa. */
+let folders = [], folderSeq = 1, selFolder = null;
+const folderById = id => id ? folders.find(f => f.id === id) || null : null;
+const folderOf = l => folderById(l && l.folder);
+const membersOf = F => layers.filter(l => l.folder === F.id);
+const FX_DEF = { on: true, b: 100, c: 100, s: 100, h: 0, gray: 0, sepia: 0, inv: 0, blur: 0, sh: 0, shc: '#000000' };
+function fxFilter(fx) {
+  if (!fx || !fx.on) return '';
+  const f = { ...FX_DEF, ...fx }, out = [];
+  if (f.b !== 100) out.push(`brightness(${f.b}%)`);
+  if (f.c !== 100) out.push(`contrast(${f.c}%)`);
+  if (f.s !== 100) out.push(`saturate(${f.s}%)`);
+  if (f.h) out.push(`hue-rotate(${f.h}deg)`);
+  if (f.gray) out.push(`grayscale(${f.gray}%)`);
+  if (f.sepia) out.push(`sepia(${f.sepia}%)`);
+  if (f.inv) out.push(`invert(${f.inv}%)`);
+  if (f.blur) out.push(`blur(${f.blur}px)`);
+  if (f.sh) out.push(`drop-shadow(${f.sh}px ${f.sh}px ${Math.round(f.sh * 0.8)}px ${f.shc})`);
+  return out.join(' ');
+}
+const hasFx = fx => !!fxFilter(fx);
+function layerFilter(l) { const F = folderOf(l); return [fxFilter(l.fx), fxFilter(F && F.fx)].filter(Boolean).join(' ') || 'none'; }
+function effOpacity(l) { const F = folderOf(l); return l.opacity * (F ? F.opacity : 1); }
+function folderVisible(l) { const F = folderOf(l); return !F || F.visible; }
+// Dibuja una capa con su opacidad y efectos (para exportar, miniaturas, video…)
+function drawLayerTo(ctx, l, src) {
+  ctx.globalAlpha = effOpacity(l);
+  const flt = layerFilter(l); if (flt !== 'none') ctx.filter = flt;
+  ctx.drawImage(src, 0, 0);
+  if (flt !== 'none') ctx.filter = 'none';
+}
+// Mantiene juntas las capas de cada carpeta y quita referencias rotas
+function normalizeFolders() {
+  for (const l of layers) if (l.folder && !folderById(l.folder)) l.folder = null;
+  for (const F of folders) {
+    const idx = layers.map((l, i) => l.folder === F.id ? i : -1).filter(i => i >= 0);
+    if (idx.length < 2) continue;
+    if (idx[idx.length - 1] - idx[0] === idx.length - 1) continue;   // ya están juntas
+    const act = layers[activeIndex], top = idx[idx.length - 1], mem = idx.map(i => layers[i]);
+    const rest = layers.filter((l, i) => !(l.folder === F.id && i !== top));
+    const at = rest.indexOf(layers[top]);
+    rest.splice(at, 1, ...mem); layers = rest; activeIndex = layers.indexOf(act);
+  }
+}
+// Foto de la estructura (orden, carpetas) para deshacer/rehacer
+function structSnap() {
+  return { order: layers.slice(), fold: layers.map(l => l.folder || null), fx: layers.map(l => l.fx ? { ...l.fx } : null),
+    folders: folders.map(f => ({ ...f, fx: f.fx ? { ...f.fx } : null })), active: activeIndex, sel: selFolder };
+}
+function structRestore(S) {
+  const keep = new Set(S.order);
+  layers.forEach(l => { if (!keep.has(l)) { l.canvas.remove(); if (l.disp) { l.disp.remove(); l.disp = null; } } });
+  const had = new Set(layers);
+  layers = S.order.slice();
+  layers.forEach((l, i) => { l.folder = S.fold[i]; l.fx = S.fx[i] ? { ...S.fx[i] } : null;
+    if (!had.has(l)) { wrapper.insertBefore(l.canvas, selSvg); if (l.anim) showCell(l); } });
+  folders = S.folders.map(f => ({ ...f, fx: f.fx ? { ...f.fx } : null }));
+  activeIndex = clamp(S.active, 0, layers.length - 1); selFolder = S.sel && folderById(S.sel) ? S.sel : null;
+  clipsDirty = true; refreshLayers(); layers.forEach(l => l.dirty = true); scheduleSave();
+}
+function structChange(fn) {
+  const before = structSnap(); fn(); normalizeFolders();
+  const after = structSnap(); clipsDirty = true; refreshLayers(); scheduleSave();
+  pushHistory({ bytes: 0, undo() { structRestore(before); }, redo() { structRestore(after); } });
+}
+// 📁 Carpeta: crear una con la capa elegida, mover la capa a otra o sacarla
+async function actFolder() {
+  if (selFolder) return toast('Elegí una capa (no la carpeta) para moverla');
+  const l = layers[activeIndex], F = folderOf(l);
+  const shown = folders.filter(f => membersOf(f).length && f !== F);
+  const choices = [{ label: '📁 Nueva carpeta con esta capa', value: 'new' }];
+  shown.forEach(f => choices.push({ label: `➡️ Mover a «${f.name}»`, value: 'to:' + f.id }));
+  if (F) choices.push({ label: `⬆️ Sacar de «${F.name}»`, value: 'out' });
+  const v = await dialog({ title: `📁 «${l.name}»`, text: 'Las carpetas agrupan capas: se ocultan, bloquean, mueven y llevan efectos todas juntas.', choices, ok: null });
+  if (!v) return;
+  if (v === 'new') {
+    const name = await dialog({ title: 'Nombre de la carpeta', input: 'Carpeta ' + (folders.length + 1), ok: 'Crear' });
+    if (name === null) return;
+    structChange(() => {
+      const nf = { id: 'f' + (folderSeq++) + Date.now().toString(36).slice(-3), name: (name.trim() || 'Carpeta').slice(0, 40), open: true, visible: true, opacity: 1, locked: false, fx: null };
+      folders.push(nf);
+      if (F && membersOf(F).length > 1) {   // si estaba en otra carpeta, sale arriba de esa carpeta
+        const mem = membersOf(F), topI = layers.indexOf(mem[mem.length - 1]);
+        layers.splice(activeIndex, 1); layers.splice(topI, 0, l);
+      }
+      l.folder = nf.id; activeIndex = layers.indexOf(l);
+    });
+    toast('📁 Carpeta creada. Para sumar capas: elegí otra capa → 📁 → Mover a la carpeta', 3200);
+  } else if (v === 'out') {
+    structChange(() => { const mem = membersOf(F), topI = layers.indexOf(mem[mem.length - 1]);
+      layers.splice(activeIndex, 1); layers.splice(topI, 0, l); l.folder = null; activeIndex = layers.indexOf(l); });
+  } else {
+    const T = folderById(v.slice(3));
+    structChange(() => { layers.splice(activeIndex, 1); const mem = membersOf(T), topI = layers.indexOf(mem[mem.length - 1]);
+      layers.splice(topI + 1, 0, l); l.folder = T.id; activeIndex = layers.indexOf(l); });
+    toast(`Movida a «${T.name}»`, 1500);
+  }
+}
+// Subir / bajar una capa (entra y sale de las carpetas de a un paso) o una carpeta entera
+function actMoveStruct(dir) {
+  if (selFolder) {
+    const F = folderById(selFolder), mem = membersOf(F), lo = layers.indexOf(mem[0]), hi = layers.indexOf(mem[mem.length - 1]);
+    const nb = dir > 0 ? hi + 1 : lo - 1;
+    if (nb < 0 || nb >= layers.length) return toast(dir > 0 ? 'Ya está arriba de todo' : 'Ya está abajo de todo');
+    const N = folderOf(layers[nb]), block = N ? membersOf(N) : [layers[nb]];
+    return structChange(() => {
+      const rest = layers.filter(l => !mem.includes(l)), act = layers[activeIndex];
+      let at = dir > 0 ? rest.indexOf(block[block.length - 1]) + 1 : rest.indexOf(block[0]);
+      rest.splice(at, 0, ...mem); layers = rest; activeIndex = layers.indexOf(act);
+    });
+  }
+  const i = activeIndex, l = layers[i], F = folderOf(l), j = i + dir, nb = layers[j];
+  if (F) {
+    const mem = membersOf(F), edge = dir > 0 ? mem[mem.length - 1] : mem[0];
+    if (l === edge) return structChange(() => { l.folder = null; });   // sale de la carpeta
+  } else if (nb && folderOf(nb)) {
+    const N = folderOf(nb);
+    if (N.open) return structChange(() => { l.folder = N.id; });      // entra a la carpeta (abierta)
+    // carpeta cerrada: la salta entera
+    if (j < 0 || j >= layers.length) return;
+    const mem = membersOf(N);
+    return structChange(() => { layers.splice(i, 1); const at = dir > 0 ? layers.indexOf(mem[mem.length - 1]) + 1 : layers.indexOf(mem[0]);
+      layers.splice(at, 0, l); activeIndex = layers.indexOf(l); });
+  }
+  if (j < 0 || j >= layers.length) return toast(dir > 0 ? 'Ya está arriba de todo' : 'Ya está abajo de todo');
+  structChange(() => { layers.splice(i, 1); layers.splice(j, 0, l); activeIndex = j; });
+}
+async function deleteFolder(F) {
+  const mem = membersOf(F);
+  const v = await dialog({ title: `🗑️ Carpeta «${F.name}»`, text: `Tiene ${mem.length} capa${mem.length === 1 ? '' : 's'}.`, ok: null, choices: [
+    { label: '📤 Quitar solo la carpeta', sub: 'las capas quedan sueltas', value: 'ungroup' },
+    { label: '🗑️ Borrar la carpeta y sus capas', value: 'all' }] });
+  if (!v) return;
+  if (v === 'all') {
+    if (mem.some(l => l.locked) || F.locked) return toast('🔒 Hay capas bloqueadas en la carpeta');
+    if (mem.length >= layers.length) return toast('Tiene que quedar al menos una capa');
+  }
+  structChange(() => {
+    if (v === 'ungroup') mem.forEach(l => l.folder = null);
+    else { const act = layers[activeIndex]; layers = layers.filter(l => !mem.includes(l)); mem.forEach(l => { l.canvas.remove(); if (l.disp) { l.disp.remove(); l.disp = null; } });
+      activeIndex = Math.max(0, Math.min(layers.length - 1, layers.indexOf(act) >= 0 ? layers.indexOf(act) : layers.length - 1)); }
+    folders = folders.filter(f => f !== F); selFolder = null;
+  });
+}
+// ✨ Efectos de una capa o de una carpeta (no cambian el dibujo: se pueden apagar o cambiar cuando quieras)
+function openEffects(target, isFolder) {
+  const before = structSnap();
+  const fx = target.fx = { ...FX_DEF, ...(target.fx || {}) };
+  const rows = [['b', 'Brillo', 0, 200, '%'], ['c', 'Contraste', 0, 200, '%'], ['s', 'Saturación', 0, 300, '%'], ['h', 'Tono', -180, 180, '°'],
+    ['gray', 'Blanco y negro', 0, 100, '%'], ['sepia', 'Sepia', 0, 100, '%'], ['inv', 'Invertir', 0, 100, '%'], ['blur', 'Desenfoque', 0, 40, ' px'], ['sh', 'Sombra', 0, 60, ' px']];
+  const card = $('mcard'), modal = $('modal');
+  card.innerHTML = `<h3></h3><p class="hint" id="fx-sub"></p>
+    <label class="check"><input type="checkbox" id="fx-on"> Efectos encendidos</label>
+    <div id="fx-rows"></div>
+    <div class="field" id="fx-shc-row"><label>Color de la sombra</label><input type="color" id="fx-shc"></div>
+    <div class="mbtns"><button id="fx-reset">Restablecer</button><button class="primary" id="fx-ok">Listo</button></div>`;
+  card.querySelector('h3').textContent = `✨ Efectos · ${isFolder ? '📁 ' : ''}${target.name}`;
+  card.querySelector('#fx-sub').textContent = isFolder ? 'Se aplican a todas las capas de la carpeta, además de los efectos propios de cada capa.' : 'Solo para esta capa. Si está en una carpeta, se suman los de la carpeta.';
+  const box = card.querySelector('#fx-rows');
+  const upd = () => { applyLayerStyles(); $('fx-on').checked = fx.on; };
+  rows.forEach(([k, name, mn, mx, u]) => {
+    const d = document.createElement('div'); d.className = 'field';
+    d.innerHTML = `<label><span></span><b></b></label><input type="range" min="${mn}" max="${mx}">`;
+    d.querySelector('span').textContent = name;
+    const r = d.querySelector('input'), b = d.querySelector('b');
+    const show = () => { r.value = fx[k]; b.textContent = fx[k] + u; };
+    r.oninput = () => { fx[k] = +r.value; fx.on = true; show(); upd(); };
+    d._show = show; show(); box.appendChild(d);
+  });
+  const on = card.querySelector('#fx-on'); on.checked = fx.on; on.onchange = () => { fx.on = on.checked; upd(); };
+  const shc = card.querySelector('#fx-shc'); shc.value = fx.shc; shc.oninput = () => { fx.shc = shc.value; upd(); };
+  card.querySelector('#fx-reset').onclick = () => { Object.assign(fx, FX_DEF); box.childNodes.forEach(d => d._show()); shc.value = fx.shc; upd(); };
+  const close = () => {
+    modal.classList.remove('open'); closeModal = null;
+    if (!hasFx(fx) && fx.on) target.fx = null;
+    const after = structSnap();
+    if (JSON.stringify(before.fx) !== JSON.stringify(after.fx) || JSON.stringify(before.folders) !== JSON.stringify(after.folders))
+      pushHistory({ bytes: 0, undo() { structRestore(before); }, redo() { structRestore(after); } });
+    layers.forEach(l => l.dirty = true); refreshLayers(); scheduleSave();
+  };
+  closeModal = close; card.querySelector('#fx-ok').onclick = close;
+  modal.classList.add('open'); upd();
+}
+
 // Orden (z-index) y visibilidad de cada capa
 function applyLayerStyles() {
   layers.forEach((l, i) => {
     const base = clipBase(l);
-    let op = l.opacity, show = l.visible && (!base || base.visible), filt = '';
+    let op = effOpacity(l), show = l.visible && (!base || base.visible) && folderVisible(l), filt = '';
     if (onion && !animMode) {      // cebolla de capas: la de abajo en rojo, la de arriba en verde
       if (i === activeIndex) { /* normal */ }
       else if (i === activeIndex - 1) { op *= 0.45; filt = 'sepia(1) saturate(7) hue-rotate(-45deg)'; }
@@ -954,7 +1199,8 @@ function applyLayerStyles() {
     const el = (base && l.disp) ? l.disp : l.canvas;
     if (el !== l.canvas) l.canvas.style.display = 'none';
     else if (l.disp) l.disp.style.display = 'none';
-    el.style.zIndex = i * 3 + 1; el.style.display = show ? '' : 'none'; el.style.opacity = op; el.style.filter = filt;
+    const fx = layerFilter(l);
+    el.style.zIndex = i * 3 + 1; el.style.display = show ? '' : 'none'; el.style.opacity = op; el.style.filter = [fx === 'none' ? '' : fx, filt].join(' ').trim();
   });
   $('btn-onion').classList.toggle('on', onion);
 }
@@ -962,34 +1208,58 @@ function applyLayerStyles() {
 function renderLayerPanel() {
   const list = $('layers-list');
   list.textContent = '';
+  if (selFolder && !(folderById(selFolder) && membersOf(folderById(selFolder)).length)) selFolder = null;
+  const done = new Set();
+  const iconBtn = (txt, title, fn, cls = '') => { const b = document.createElement('button'); b.className = 'leye ' + cls; b.textContent = txt; b.title = title;
+    b.onclick = e => { e.stopPropagation(); fn(); }; return b; };
   for (let i = layers.length - 1; i >= 0; i--) {
-    const l = layers[i], clipped = !!clipBase(l);
+    const l = layers[i], F = folderById(l.folder);
+    if (F && !done.has(F)) {   // cabecera de la carpeta
+      done.add(F);
+      const mem = membersOf(F), fr = document.createElement('div');
+      fr.className = 'lrow frow' + (selFolder === F.id ? ' active' : '') + (F.visible ? '' : ' off') + (F.locked ? ' locked' : '');
+      const chev = iconBtn(F.open ? '▾' : '▸', F.open ? 'Cerrar carpeta' : 'Abrir carpeta', () => { F.open = !F.open; renderLayerPanel(); scheduleSave(); }, 'fchev');
+      const ic = document.createElement('div'); ic.className = 'fico'; ic.textContent = F.open ? '📂' : '📁';
+      const info = document.createElement('div'); info.className = 'linfo';
+      const nm = document.createElement('div'); nm.className = 'lname'; nm.textContent = F.name;
+      const meta = document.createElement('div'); meta.className = 'lmeta';
+      meta.textContent = `${mem.length} capa${mem.length === 1 ? '' : 's'}` + (F.visible ? (F.opacity < 1 ? ` · ${Math.round(F.opacity * 100)}%` : '') : ' · oculta') + (hasFx(F.fx) ? ' · ✨' : '') + (F.locked ? ' · 🔒' : '');
+      info.append(nm, meta);
+      fr.append(chev, ic, info,
+        iconBtn(F.locked ? '🔒' : '🔓', F.locked ? 'Desbloquear carpeta' : 'Bloquear carpeta', () => { F.locked = !F.locked; refreshLayers(); scheduleSave(); }, 'llock'),
+        iconBtn(F.visible ? '👁️' : '🙈', F.visible ? 'Ocultar carpeta' : 'Mostrar carpeta', () => { F.visible = !F.visible; refreshLayers(); scheduleSave(); }));
+      fr.onclick = () => { if (xform) commitTransform(); selFolder = F.id; activeIndex = layers.indexOf(mem[mem.length - 1]); refreshLayers(); };
+      list.appendChild(fr);
+    }
+    if (F && !F.open) continue;
+    const clipped = !!clipBase(l);
     const row = document.createElement('div');
-    row.className = 'lrow' + (i === activeIndex ? ' active' : '') + (l.visible ? '' : ' off') + (clipped ? ' clipped' : '') + (l.locked ? ' locked' : '');
+    row.className = 'lrow' + (i === activeIndex && !selFolder ? ' active' : '') + (l.visible ? '' : ' off') + (clipped ? ' clipped' : '') + (l.locked ? ' locked' : '') + (F ? ' infolder' : '');
     const th = document.createElement('div'); th.className = 'lthumb'; th.appendChild(l.thumb);
     const info = document.createElement('div'); info.className = 'linfo';
     const nm = document.createElement('div'); nm.className = 'lname'; nm.textContent = l.name;
     const meta = document.createElement('div'); meta.className = 'lmeta';
-    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '') + (l.locked ? ' · 🔒 bloqueada' : '');
+    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '') + (hasFx(l.fx) ? ' · ✨' : '') + (l.locked ? ' · 🔒' : '');
     info.append(nm, meta);
-    const lock = document.createElement('button'); lock.className = 'leye llock';
-    lock.textContent = l.locked ? '🔒' : '🔓'; lock.title = l.locked ? 'Desbloquear' : 'Bloquear (para no pintarla sin querer)';
-    lock.onclick = e => { e.stopPropagation(); l.locked = !l.locked; refreshLayers(); scheduleSave();
-      toast(l.locked ? `🔒 «${l.name}» bloqueada: no se puede pintar ni borrar` : `🔓 «${l.name}» desbloqueada`, 1800); };
-    const eye = document.createElement('button'); eye.className = 'leye';
-    eye.textContent = l.visible ? '👁️' : '🙈'; eye.title = l.visible ? 'Ocultar' : 'Mostrar';
-    eye.onclick = e => { e.stopPropagation(); l.visible = !l.visible; refreshLayers(); scheduleSave(); };
+    const lock = iconBtn(l.locked ? '🔒' : '🔓', l.locked ? 'Desbloquear' : 'Bloquear (para no pintarla sin querer)', () => {
+      l.locked = !l.locked; refreshLayers(); scheduleSave();
+      toast(l.locked ? `🔒 «${l.name}» bloqueada: no se puede pintar ni borrar` : `🔓 «${l.name}» desbloqueada`, 1800); }, 'llock');
+    const eye = iconBtn(l.visible ? '👁️' : '🙈', l.visible ? 'Ocultar' : 'Mostrar', () => { l.visible = !l.visible; refreshLayers(); scheduleSave(); });
     row.append(th, info, lock, eye);
-    row.onclick = () => { if (xform) commitTransform(); activeIndex = i; refreshLayers(); };
+    row.onclick = () => { if (xform) commitTransform(); selFolder = null; activeIndex = i; refreshLayers(); };
     list.appendChild(row);
   }
   $('layer-count').textContent = `${layers.length}/${MAX_LAYERS}`;
-  const a = layers[activeIndex];
-  $('lop-range').value = Math.round(a.opacity * 100);
-  $('lop-val').textContent = Math.round(a.opacity * 100) + '%';
-  $('act-clip').classList.toggle('on', a.clip);
-  $('act-anim').classList.toggle('on', !!a.anim);
+  const a = layers[activeIndex], SF = folderById(selFolder);
+  const op = SF ? SF.opacity : a.opacity;
+  $('lop-range').value = Math.round(op * 100);
+  $('lop-val').textContent = Math.round(op * 100) + '%';
+  $('lop-label').textContent = SF ? `Opacidad de la carpeta` : 'Opacidad de la capa';
+  $('act-clip').classList.toggle('on', !SF && a.clip);
+  $('act-anim').classList.toggle('on', !SF && !!a.anim);
   $('act-anim').lastChild.textContent = a.anim ? 'Fija' : 'Animar';
+  $('act-fx').classList.toggle('on', hasFx(SF ? SF.fx : a.fx));
+  $('layers-panel').classList.toggle('folder-sel', !!SF);
 }
 function refreshLayers() {
   if (clipsDirty) { clipsDirty = false; refreshClips(); }
@@ -997,8 +1267,10 @@ function refreshLayers() {
   if (animMode) { updateDock(); requestRender(); }
 }
 
-function replaceDocument(newLayers, active, fromStorage = false) {
+function replaceDocument(newLayers, active, fromStorage = false, fds = []) {
   if (stroke) cancelStroke();
+  folders = fds.map(f => ({ ...f })); selFolder = null;
+  folderSeq = 1 + folders.length;
   xform = null; floatCanvas.style.display = 'none';
   layers.forEach(l => { l.canvas.remove(); if (l.disp) { l.disp.remove(); l.disp = null; } });
   layers = [];
@@ -1065,6 +1337,8 @@ function groupEntry(list) {
 // Capas bloqueadas: no se pueden pintar, borrar ni mover
 function isLocked(l) {
   if (l && l.locked) { toast('🔒 La capa «' + l.name + '» está bloqueada. Desbloqueala en 📚 Capas', 2600); return true; }
+  const F = l && folderById(l.folder);
+  if (F && F.locked) { toast('🔒 La carpeta «' + F.name + '» está bloqueada. Desbloqueala en 📚 Capas', 2600); return true; }
   return false;
 }
 function snapshot(layer) { const c = makeCanvas(); c.getContext('2d').drawImage(layer.canvas, 0, 0); return c; }
@@ -1131,7 +1405,7 @@ function actDuplicate() {
     l.anim = true; l.blank = l.canvas; l.cells = new Map();
     for (const [k, c] of src.cells) { const n = newCellCanvas(); n.getContext('2d').drawImage(c, 0, 0); l.cells.set(k, n); cellDirty.add(n); }
   } else l.ctx.drawImage(src.canvas, 0, 0);
-  l.opacity = src.opacity; l.visible = src.visible; l.clip = src.clip;
+  l.opacity = src.opacity; l.visible = src.visible; l.clip = src.clip; l.folder = src.folder || null; l.fx = src.fx ? { ...src.fx } : null;
   const idx = activeIndex + 1; insertLayer(l, idx); activeIndex = idx; refreshLayers();
   pushHistory(addEntry(l, idx)); layerChanged(l);
 }
@@ -1144,7 +1418,7 @@ function actMerge() {
   const snap = snapshot(down);
   const doMerge = () => {
     if (clipBase(up)) renderClip(up);
-    down.ctx.save(); down.ctx.globalAlpha = up.opacity; down.ctx.drawImage(visualCanvas(up), 0, 0); down.ctx.restore();
+    down.ctx.save(); down.ctx.globalAlpha = up.opacity; if (hasFx(up.fx)) down.ctx.filter = fxFilter(up.fx); down.ctx.drawImage(visualCanvas(up), 0, 0); down.ctx.restore();
     removeLayer(up); activeIndex = layers.indexOf(down); refreshLayers(); layerChanged(down);
   };
   doMerge();
@@ -1204,6 +1478,7 @@ function setView(m) {
   const s = viewScale();   // el borde de la selección mantiene el mismo grosor en pantalla
   selSvg.style.setProperty('--sw', (2.4 / s).toFixed(2));
   selSvg.style.setProperty('--dash', (7 / s).toFixed(2));
+  if (comicSel && settings.tool === 'comic') renderComic();
   if (animMode) renderBoneOverlay();
   if (pixelMode) updatePixGrid();
 }
@@ -1253,6 +1528,311 @@ const selG = document.createElementNS(SVGNS, 'g');
 const selA = document.createElementNS(SVGNS, 'path'); selA.id = 'sel-a';
 const selB = document.createElementNS(SVGNS, 'path'); selB.id = 'sel-b';
 selG.append(selA, selB); selSvg.appendChild(selG); wrapper.appendChild(selSvg);
+
+/* =====================================================================
+   HISTORIETA: viñetas y globos de diálogo (se editan aparte del dibujo)
+   ===================================================================== */
+const comicSvg = document.createElementNS(SVGNS, 'svg'); comicSvg.id = 'comic-svg'; wrapper.appendChild(comicSvg);
+let comic = { panels: [], balloons: [] }, comicSel = null, comicSeq = 1, comicDrag = null;
+let comicCache = null, comicCacheSig = '';
+const COMIC_FONT = '"Comic Neue","Comic Sans MS","Chalkboard SE","Comic Relief","Segoe Print",sans-serif';
+const BALLOON_TYPES = { talk: { ico: '💬', name: 'Diálogo' }, think: { ico: '💭', name: 'Pensamiento' }, shout: { ico: '💥', name: 'Grito' }, narr: { ico: '📜', name: 'Narración' }, whisper: { ico: '🤫', name: 'Susurro' } };
+const cU = () => Math.min(W, H) / 1000;           // unidad relativa al tamaño de la hoja
+const cid = p => p + (comicSeq++) + Math.random().toString(36).slice(2, 5);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const r1 = v => Math.round(v * 10) / 10;
+function hasComic() { return comic.panels.length > 0 || comic.balloons.length > 0; }
+function comicSnap() { return JSON.stringify(comic); }
+function comicCommit(before) {
+  const after = comicSnap(); if (after === before) return;
+  pushHistory({ bytes: 0, undo() { comic = JSON.parse(before); comicChanged(); }, redo() { comic = JSON.parse(after); comicChanged(); } });
+  comicChanged();
+}
+function comicChanged() {
+  if (comicSel && !findComic(comicSel)) comicSel = null;
+  renderComic(); updateComicBar(); scheduleSave(); refreshComicCache();
+  document.body.classList.toggle('has-comic', hasComic() || (curProject && curProject.kind === 'comic'));
+}
+function findComic(id) { return comic.balloons.find(b => b.id === id) || comic.panels.find(p => p.id === id) || null; }
+const isBalloon = o => o && o.type !== undefined;
+// --- Texto en renglones que entran en el globo ---
+const measCtx = document.createElement('canvas').getContext('2d');
+function textLines(b) {
+  const txt = b.caps ? (b.text || '').toUpperCase() : (b.text || '');
+  measCtx.font = `${b.bold ? 700 : 400} ${b.fs}px ${COMIC_FONT}`;
+  const maxW = b.w * (b.type === 'narr' ? 0.88 : b.type === 'shout' ? 0.62 : 0.72), out = [];
+  for (const para of txt.split('\n')) {
+    let line = '';
+    for (const w of para.split(/\s+/).filter(Boolean)) {
+      const t = line ? line + ' ' + w : w;
+      if (measCtx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+    }
+    out.push(line);
+  }
+  return out;
+}
+function fitBalloon(b) {   // agranda el globo si el texto no entra
+  const lines = textLines(b), lh = b.fs * 1.18, need = lines.length * lh + b.fs * 0.8;
+  const k = b.type === 'narr' ? 1 : b.type === 'shout' ? 0.6 : 0.72;
+  b.h = Math.max(b.h, need / k);
+}
+// --- Formas ---
+function ellipsePt(b, a, k = 1) { return [b.x + Math.cos(a) * b.w / 2 * k, b.y + Math.sin(a) * b.h / 2 * k]; }
+function tailShape(b) {
+  if (!b.tail || b.type === 'narr') return '';
+  const a = Math.atan2(b.tail.y - b.y, b.tail.x - b.x);
+  if (b.type === 'think') {   // burbujitas que van hacia el personaje
+    const [ex, ey] = ellipsePt(b, a, 1.02); let s = '';
+    const d = Math.hypot(b.tail.x - ex, b.tail.y - ey);
+    if (d < 4) return '';
+    [0.28, 0.62, 0.92].forEach((t, i) => { const r = Math.max(2, Math.min(b.w, b.h) * [0.09, 0.06, 0.035][i]);
+      s += `<circle cx="${r1(ex + (b.tail.x - ex) * t)}" cy="${r1(ey + (b.tail.y - ey) * t)}" r="${r1(r)}"/>`; });
+    return s;
+  }
+  const spread = b.type === 'shout' ? 0.24 : 0.17, k = b.type === 'shout' ? 0.66 : 0.92;
+  const [x1, y1] = ellipsePt(b, a - spread, k), [x2, y2] = ellipsePt(b, a + spread, k);
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, bend = b.type === 'shout' ? 0 : 0.18;
+  const cx = mx + (b.tail.x - mx) * 0.5 - (b.tail.y - my) * bend, cy = my + (b.tail.y - my) * 0.5 + (b.tail.x - mx) * bend;
+  return b.type === 'shout' ? `<path d="M${r1(x1)} ${r1(y1)} L${r1(b.tail.x)} ${r1(b.tail.y)} L${r1(x2)} ${r1(y2)} Z"/>`
+    : `<path d="M${r1(x1)} ${r1(y1)} Q${r1(cx)} ${r1(cy)} ${r1(b.tail.x)} ${r1(b.tail.y)} Q${r1((cx + x2) / 2 + (cx - mx) * 0.1)} ${r1((cy + y2) / 2 + (cy - my) * 0.1)} ${r1(x2)} ${r1(y2)} Z"/>`;
+}
+function bodyShape(b) {
+  if (b.type === 'narr') return `<rect x="${r1(b.x - b.w / 2)}" y="${r1(b.y - b.h / 2)}" width="${r1(b.w)}" height="${r1(b.h)}" rx="${r1(Math.min(b.w, b.h) * 0.04)}"/>`;
+  if (b.type === 'shout') {
+    const n = 22, pts = []; let seed = 0; for (const ch of b.id) seed = (seed * 31 + ch.charCodeAt(0)) | 0;
+    const R = seededRand(seed);
+    for (let i = 0; i < n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, k = i % 2 ? 0.78 + R() * 0.06 : 1.02 + R() * 0.16; pts.push(ellipsePt(b, a, k).map(r1).join(' ')); }
+    return `<polygon points="${pts.join(' ')}"/>`;
+  }
+  if (b.type === 'think') {
+    const n = 11; let s = `<ellipse cx="${r1(b.x)}" cy="${r1(b.y)}" rx="${r1(b.w / 2 * 0.86)}" ry="${r1(b.h / 2 * 0.86)}"/>`;
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + 0.3, [px, py] = ellipsePt(b, a, 0.8);
+      const r = Math.min(b.w, b.h) * 0.2 + Math.max(b.w, b.h) * 0.05;
+      s += `<circle cx="${r1(px)}" cy="${r1(py)}" r="${r1(r)}"/>`; }
+    return s;
+  }
+  return `<ellipse cx="${r1(b.x)}" cy="${r1(b.y)}" rx="${r1(b.w / 2)}" ry="${r1(b.h / 2)}"/>`;
+}
+function balloonSVG(b) {
+  const sw = Math.max(1.5, cU() * 3 * (b.sw || 1)), shapes = bodyShape(b) + tailShape(b);
+  const fill = b.type === 'narr' ? '#fff4c2' : '#ffffff';
+  let g = b.type === 'whisper'
+    ? `<g fill="${fill}" stroke="#111" stroke-width="${r1(sw)}" stroke-dasharray="${r1(sw * 3)} ${r1(sw * 2.2)}">${shapes}</g>`
+    : `<g fill="#111" stroke="#111" stroke-width="${r1(sw * 2)}" stroke-linejoin="round">${shapes}</g><g fill="${fill}" stroke="none">${shapes}</g>`;
+  const lines = textLines(b), lh = b.fs * 1.18, y0 = b.y - (lines.length - 1) * lh / 2;
+  g += `<text x="${r1(b.x)}" text-anchor="middle" dominant-baseline="central" font-family='${COMIC_FONT}' font-size="${r1(b.fs)}" font-weight="${b.bold ? 700 : 400}" fill="#111">` +
+    lines.map((t, i) => `<tspan x="${r1(b.x)}" y="${r1(y0 + i * lh)}">${esc(t)}</tspan>`).join('') + '</text>';
+  return `<g>${g}</g>`;
+}
+function panelSVG(p) {
+  const bw = Math.max(1.5, cU() * 6 * (p.bw || 1));
+  return `<polygon points="${p.pts.map(q => q.map(r1).join(' ')).join(' ')}" fill="${p.fill || 'none'}" stroke="#111" stroke-width="${r1(bw)}" stroke-linejoin="miter"/>`;
+}
+function comicContentSVG() { return comic.panels.map(panelSVG).join('') + comic.balloons.map(balloonSVG).join(''); }
+// Manijas de edición (solo con la herramienta Cómic)
+function comicHandles() {
+  const o = comicSel && findComic(comicSel); if (!o || settings.tool !== 'comic') return [];
+  if (isBalloon(o)) {
+    const hs = [['c0', o.x - o.w / 2, o.y - o.h / 2], ['c1', o.x + o.w / 2, o.y - o.h / 2], ['c2', o.x + o.w / 2, o.y + o.h / 2], ['c3', o.x - o.w / 2, o.y + o.h / 2]];
+    if (o.type !== 'narr' && o.tail) hs.push(['tail', o.tail.x, o.tail.y]);
+    return hs;
+  }
+  const hs = o.pts.map((q, i) => ['p' + i, q[0], q[1]]);
+  o.pts.forEach((q, i) => { const n = o.pts[(i + 1) % 4]; hs.push(['e' + i, (q[0] + n[0]) / 2, (q[1] + n[1]) / 2]); });
+  return hs;
+}
+function renderComic() {
+  comicSvg.setAttribute('width', W); comicSvg.setAttribute('height', H); comicSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let ui = '';
+  const o = comicSel && findComic(comicSel);
+  if (o && settings.tool === 'comic') {
+    const s = viewScale(), r = 11 / s, lw = 2 / s;
+    if (isBalloon(o)) ui += `<rect x="${o.x - o.w / 2}" y="${o.y - o.h / 2}" width="${o.w}" height="${o.h}" fill="none" stroke="#1fbf5b" stroke-width="${lw}" stroke-dasharray="${6 / s} ${4 / s}"/>`;
+    else ui += `<polygon points="${o.pts.map(q => q.join(' ')).join(' ')}" fill="#1fbf5b14" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`;
+    for (const [k, x, y] of comicHandles()) {
+      const tail = k === 'tail', edge = k[0] === 'e';
+      ui += tail ? `<circle cx="${x}" cy="${y}" r="${r * 1.1}" fill="#ffd23f" stroke="#111" stroke-width="${lw}"/>`
+        : edge ? `<rect x="${x - r * 0.75}" y="${y - r * 0.75}" width="${r * 1.5}" height="${r * 1.5}" rx="${r * 0.3}" fill="#fff" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`
+        : `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#1fbf5b" stroke-width="${lw * 1.5}"/>`;
+    }
+  }
+  comicSvg.innerHTML = comicContentSVG() + ui;
+}
+// Imagen de la historieta para exportar (se arma aparte porque el texto necesita dibujarse como SVG)
+function refreshComicCache() {
+  const sig = W + 'x' + H + comicSnap();
+  if (sig === comicCacheSig) return Promise.resolve();
+  comicCacheSig = sig;
+  if (!hasComic()) { comicCache = null; return Promise.resolve(); }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${comicContentSVG()}</svg>`;
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  return loadImageURL(url).then(im => { if (sig !== comicCacheSig) return; const c = makeCanvas(); c.getContext('2d').drawImage(im, 0, 0); comicCache = c; })
+    .catch(() => {}).finally(() => setTimeout(() => URL.revokeObjectURL(url), 500));
+}
+function drawComic(ctx) { if (hasComic() && comicCache) ctx.drawImage(comicCache, 0, 0); }
+// --- Crear ---
+function addPanel() {
+  const before = comicSnap(), c = toCanvas(vpCenter()), w = W * 0.42, h = H * 0.28;
+  const x = clamp(c.x, w / 2, W - w / 2), y = clamp(c.y, h / 2, H - h / 2);
+  const p = { id: cid('v'), pts: [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]], bw: 1 };
+  comic.panels.push(p); comicSel = p.id; comicCommit(before);
+  toast('▭ Viñeta: arrastrala para moverla. Los círculos cambian la forma y los cuadraditos el tamaño', 3500);
+}
+async function addBalloon(type) {
+  const before = comicSnap(), c = toCanvas(vpCenter()), w = Math.min(W, H) * (type === 'narr' ? 0.42 : 0.34), h = w * (type === 'narr' ? 0.32 : 0.6);
+  const x = clamp(c.x, w / 2, W - w / 2), y = clamp(c.y - h * 0.4, h / 2, H - h / 2);
+  const b = { id: cid('g'), type, x, y, w, h, tail: type === 'narr' ? null : { x: x - w * 0.18, y: y + h * 1.05 }, text: '', fs: Math.round(Math.min(W, H) * 0.032), bold: type === 'shout', caps: type === 'shout' || type === 'narr', sw: 1 };
+  comic.balloons.push(b); comicSel = b.id; comicChanged();
+  const ok = await editBalloonText(b, true);
+  if (!ok) { comic.balloons = comic.balloons.filter(x => x !== b); comicSel = null; comicChanged(); return; }
+  comicCommit(before);
+  if (type !== 'narr') toast('🟡 Arrastrá el punto amarillo para que la cola señale al personaje', 3200);
+}
+// Página armada: viñetas en cuadrícula
+async function pageTemplate() {
+  const v = await dialog({ title: '▦ Armar la página', text: hasComic() && comic.panels.length ? 'Se reemplazan las viñetas que ya hay (los globos quedan).' : 'Después podés mover y cambiar la forma de cada viñeta.', ok: null, choices: [
+    { label: '▭ 1 viñeta', value: '1' }, { label: '▤ 2 horizontales', value: '2h' }, { label: '▥ 2 verticales', value: '2v' },
+    { label: '☰ 3 filas', value: '3' }, { label: '⊞ 4 (2 × 2)', value: '4' }, { label: '⊟ 1 grande + 2 abajo', value: '1+2' }, { label: '▦ 6 (2 × 3)', value: '6' }] });
+  if (!v) return;
+  const before = comicSnap(), m = Math.min(W, H) * 0.045, g = Math.min(W, H) * 0.025, X0 = m, Y0 = m, AW = W - 2 * m, AH = H - 2 * m;
+  const grid = (cols, rows) => { const out = [], cw = (AW - g * (cols - 1)) / cols, rh = (AH - g * (rows - 1)) / rows;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out.push([X0 + c * (cw + g), Y0 + r * (rh + g), cw, rh]); return out; };
+  let rects = v === '1' ? grid(1, 1) : v === '2h' ? grid(1, 2) : v === '2v' ? grid(2, 1) : v === '3' ? grid(1, 3) : v === '4' ? grid(2, 2) : v === '6' ? grid(2, 3) : null;
+  if (v === '1+2') { const top = (AH - g) * 0.55, bot = AH - g - top, cw = (AW - g) / 2;
+    rects = [[X0, Y0, AW, top], [X0, Y0 + top + g, cw, bot], [X0 + cw + g, Y0 + top + g, cw, bot]]; }
+  comic.panels = rects.map(([x, y, w, h]) => ({ id: cid('v'), pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], bw: 1 }));
+  comicSel = null; comicCommit(before);
+}
+// --- Texto del globo ---
+function editBalloonText(b, isNew) {
+  return new Promise(res => {
+    const card = $('mcard'), modal = $('modal'), orig = { ...b };
+    card.innerHTML = `<h3></h3><div class="chips" id="bt-types"></div>
+      <textarea id="bt-text" rows="3" placeholder="Escribí lo que dice…"></textarea>
+      <div class="field"><label>Tamaño de la letra <b id="bt-fsv"></b></label><input type="range" id="bt-fs" min="8" max="160"></div>
+      <label class="check"><input type="checkbox" id="bt-bold"> Negrita</label>
+      <label class="check"><input type="checkbox" id="bt-caps"> TODO EN MAYÚSCULAS</label>
+      <div class="mbtns"><button id="bt-cancel">Cancelar</button><button class="primary" id="bt-ok">Listo</button></div>`;
+    card.querySelector('h3').textContent = isNew ? 'Nuevo globo' : 'Editar globo';
+    const ta = card.querySelector('#bt-text'), fs = card.querySelector('#bt-fs'), fsv = card.querySelector('#bt-fsv');
+    const unit = Math.min(W, H) / 1000;
+    fs.min = Math.max(6, Math.round(unit * 12)); fs.max = Math.round(unit * 160);
+    ta.value = b.text; fs.value = b.fs; fsv.textContent = b.fs + ' px';
+    card.querySelector('#bt-bold').checked = !!b.bold; card.querySelector('#bt-caps').checked = !!b.caps;
+    const types = card.querySelector('#bt-types');
+    const drawTypes = () => { types.textContent = ''; Object.entries(BALLOON_TYPES).forEach(([k, t]) => {
+      const c = document.createElement('button'); c.className = 'chip' + (b.type === k ? ' on' : ''); c.textContent = t.ico + ' ' + t.name;
+      c.onclick = () => { b.type = k; if (k === 'narr') b.tail = null; else if (!b.tail) b.tail = { x: b.x - b.w * 0.18, y: b.y + b.h * 1.05 }; drawTypes(); live(); };
+      types.appendChild(c); }); };
+    const live = () => { b.text = ta.value; b.fs = +fs.value; fsv.textContent = b.fs + ' px'; b.bold = card.querySelector('#bt-bold').checked; b.caps = card.querySelector('#bt-caps').checked; fitBalloon(b); renderComic(); };
+    ta.oninput = fs.oninput = live; card.querySelector('#bt-bold').onchange = card.querySelector('#bt-caps').onchange = live;
+    drawTypes();
+    const close = ok => { modal.classList.remove('open'); closeModal = null; if (!ok) Object.assign(b, orig); renderComic(); res(ok); };
+    closeModal = () => close(false);
+    card.querySelector('#bt-cancel').onclick = () => close(false);
+    card.querySelector('#bt-ok').onclick = () => close(true);
+    modal.classList.add('open'); setTimeout(() => ta.focus(), 60);
+  });
+}
+async function comicEditText() {
+  const b = comicSel && findComic(comicSel); if (!isBalloon(b)) return toast('Tocá un globo primero');
+  const before = comicSnap(); if (await editBalloonText(b, false)) comicCommit(before);
+}
+function comicDelete() {
+  const o = comicSel && findComic(comicSel); if (!o) return toast('Tocá una viñeta o un globo primero');
+  const before = comicSnap();
+  comic.panels = comic.panels.filter(x => x !== o); comic.balloons = comic.balloons.filter(x => x !== o);
+  comicSel = null; comicCommit(before);
+}
+function comicDuplicate() {
+  const o = comicSel && findComic(comicSel); if (!o) return toast('Tocá una viñeta o un globo primero');
+  const before = comicSnap(), d = Math.min(W, H) * 0.04, n = JSON.parse(JSON.stringify(o)); n.id = cid(isBalloon(o) ? 'g' : 'v');
+  if (isBalloon(n)) { n.x += d; n.y += d; if (n.tail) { n.tail.x += d; n.tail.y += d; } comic.balloons.push(n); }
+  else { n.pts = n.pts.map(([x, y]) => [x + d, y + d]); comic.panels.push(n); }
+  comicSel = n.id; comicCommit(before);
+}
+function comicFont(k) {
+  const b = comicSel && findComic(comicSel);
+  if (isBalloon(b)) { const before = comicSnap(); b.fs = clamp(Math.round(b.fs * k), 6, Math.round(Math.min(W, H) * 0.2)); fitBalloon(b); comicCommit(before); return; }
+  if (b) { const before = comicSnap(); b.bw = clamp((b.bw || 1) * k, 0.25, 6); comicCommit(before); return; }
+  toast('Tocá una viñeta o un globo primero');
+}
+function comicToFront() {
+  const o = comicSel && findComic(comicSel); if (!o) return;
+  const before = comicSnap(), arr = isBalloon(o) ? comic.balloons : comic.panels;
+  arr.splice(arr.indexOf(o), 1); arr.push(o); comicCommit(before);
+}
+// --- Tocar y arrastrar ---
+function pointInPoly(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function comicHit(c) {
+  const s = viewScale(), R = 22 / s;
+  for (const [k, x, y] of comicHandles()) if (Math.hypot(c.x - x, c.y - y) <= R) return { id: comicSel, part: k };
+  for (let i = comic.balloons.length - 1; i >= 0; i--) {
+    const b = comic.balloons[i], dx = (c.x - b.x) / (b.w / 2), dy = (c.y - b.y) / (b.h / 2);
+    if (b.type === 'narr' ? Math.abs(dx) <= 1 && Math.abs(dy) <= 1 : dx * dx + dy * dy <= 1.15) return { id: b.id, part: 'body' };
+  }
+  for (let i = comic.panels.length - 1; i >= 0; i--) {
+    const p = comic.panels[i];
+    if (pointInPoly(c.x, c.y, p.pts)) return { id: p.id, part: 'body' };
+    for (let k = 0; k < 4; k++) { const a = p.pts[k], b = p.pts[(k + 1) % 4], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const t = clamp(((c.x - a[0]) * (b[0] - a[0]) + (c.y - a[1]) * (b[1] - a[1])) / (L * L), 0, 1);
+      if (Math.hypot(c.x - a[0] - (b[0] - a[0]) * t, c.y - a[1] - (b[1] - a[1]) * t) <= R) return { id: p.id, part: 'body' }; }
+  }
+  return null;
+}
+function comicDown(e, p) {
+  const c = toCanvas(p), h = comicHit(c);
+  mode = 'comic'; drawPointerId = e.pointerId; drawType = e.pointerType;
+  const wasSel = comicSel;
+  comicSel = h ? h.id : null;
+  const o = h && findComic(h.id);
+  comicDrag = o ? { part: h.part, c0: c, before: comicSnap(), orig: JSON.parse(JSON.stringify(o)), o, moved: false, wasSel: wasSel === h.id } : null;
+  renderComic(); updateComicBar();
+}
+function comicMove(p) {
+  const d = comicDrag; if (!d) return;
+  const c = toCanvas(p), dx = c.x - d.c0.x, dy = c.y - d.c0.y;
+  if (!d.moved && Math.hypot(dx, dy) * viewScale() < 6) return;
+  d.moved = true;
+  const o = d.o, g = d.orig, min = Math.min(W, H) * 0.04;
+  if (d.part === 'body') {
+    if (isBalloon(o)) { o.x = g.x + dx; o.y = g.y + dy; if (g.tail) o.tail = { x: g.tail.x + dx, y: g.tail.y + dy }; }
+    else o.pts = g.pts.map(([x, y]) => [x + dx, y + dy]);
+  } else if (d.part === 'tail') o.tail = { x: c.x, y: c.y };
+  else if (d.part[0] === 'c') {   // esquina del globo: la opuesta queda fija
+    const k = +d.part[1], sx = (k === 1 || k === 2) ? 1 : -1, sy = (k >= 2) ? 1 : -1;
+    const fx = g.x - sx * g.w / 2, fy = g.y - sy * g.h / 2;
+    const nx = sx > 0 ? Math.max(fx + min, c.x) : Math.min(fx - min, c.x), ny = sy > 0 ? Math.max(fy + min, c.y) : Math.min(fy - min, c.y);
+    o.w = Math.abs(nx - fx); o.h = Math.abs(ny - fy); o.x = (nx + fx) / 2; o.y = (ny + fy) / 2;
+  } else if (d.part[0] === 'p') { o.pts = g.pts.map(q => q.slice()); o.pts[+d.part[1]] = [c.x, c.y]; }
+  else if (d.part[0] === 'e') { const k = +d.part[1]; o.pts = g.pts.map(q => q.slice());
+    [k, (k + 1) % 4].forEach(i => { o.pts[i] = [g.pts[i][0] + dx, g.pts[i][1] + dy]; }); }
+  renderComic();
+}
+function comicUp(cancel) {
+  const d = comicDrag; comicDrag = null; mode = null;
+  if (!d) return;
+  if (cancel) { Object.assign(d.o, d.orig); renderComic(); return; }
+  if (d.moved) { if (isBalloon(d.o) && d.part[0] === 'c') fitBalloon(d.o); comicCommit(d.before); }
+  else if (d.wasSel && isBalloon(d.o)) comicEditText();   // tocar un globo ya elegido: editar el texto
+}
+function updateComicBar() {
+  const on = settings.tool === 'comic' && animMode !== 'rig';
+  $('comicbar').hidden = !on;
+  const o = comicSel && findComic(comicSel), b = isBalloon(o);
+  document.querySelectorAll('[data-cmsel]').forEach(x => x.hidden = !o);
+  document.querySelectorAll('[data-cmbal]').forEach(x => x.hidden = !b);
+  $('cm-minus-l').textContent = b ? 'Letra −' : 'Borde −'; $('cm-plus-l').textContent = b ? 'Letra +' : 'Borde +';
+  $('cm-hint').hidden = !!o;
+  if (on) document.body.classList.add('has-bar');
+}
 
 let selection = null;   // { pts:[[x,y],…], inverted, path:Path2D, rule }
 let selDraft = null;
@@ -1423,6 +2003,9 @@ function swapLayerCanvas(l, c, ctx) {
   if (l.disp) { l.disp.remove(); l.disp = null; }
 }
 function shiftScene(dx, dy) {
+  comic.panels.forEach(p => p.pts.forEach(q => { q[0] += dx; q[1] += dy; }));
+  comic.balloons.forEach(b => { b.x += dx; b.y += dy; if (b.tail) { b.tail.x += dx; b.tail.y += dy; } });
+  renderComic(); refreshComicCache();
   scene.objects.forEach(o => o.bones.forEach(b => { b.px += dx; b.py += dy; b.tx += dx; b.ty += dy; b.ix += dx; b.iy += dy; }));
 }
 // Cambia el tamaño del lienzo moviendo el dibujo (dx, dy). Se puede deshacer.
@@ -1592,6 +2175,7 @@ function setDocSize(w, h) {
   buildPixGrid(); updateCheckerSize();
   boneSvg.setAttribute('width', w); boneSvg.setAttribute('height', h); boneSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   selSvg.setAttribute('width', w); selSvg.setAttribute('height', h); selSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  renderComic();
 }
 
 const tipCache = new Map();
@@ -1678,7 +2262,7 @@ function strokeMove(p, ev) {
     if (s.prevScr) { const dt = Math.max(4, t - s.prevT), v = Math.hypot(p.x - s.prevScr.x, p.y - s.prevScr.y) / dt;
       s.vel = s.vel == null ? v : s.vel * 0.75 + v * 0.25; }
     s.prevScr = { x: p.x, y: p.y }; s.prevT = t;
-    vf = 1 - s.dyn.speed * 0.85 * clamp(((s.vel || 0) - 0.2) / 2.2, 0, 1);
+    vf = 1 - s.dyn.speed * 0.75 * clamp(((s.vel || 0) - 0.2) / 2.2, 0, 1);
   }
   const raw = { x: c.x, y: c.y, p: pr, v: vf };
   s.lastRaw = raw;
@@ -1716,7 +2300,35 @@ function clampBox(bb) {
   if (x2 <= x || y2 <= y) return null;
   return { x, y, w: x2 - x, h: y2 - y };
 }
+// Rellena el camino entre los puntos que manda el dedo con una curva que pasa por todos ellos
+// (Catmull-Rom centrípeta): aunque el dedo vaya muy rápido, el trazo queda continuo y redondeado.
 function renderPoint(pt, final) {
+  const s = stroke;
+  if (pixelMode || s.tool === 'gradient') return drawPt(pt, final);
+  const B = s.cr || (s.cr = []);
+  B.push(pt); if (B.length > 4) B.shift();
+  const n = B.length;
+  if (n === 1) { drawPt(pt, final); return; }
+  if (n >= 3) emitSeg(B[n - 4] || B[n - 3], B[n - 3], B[n - 2], pt, false);
+  if (final) emitSeg(B[n - 3] || B[n - 2], B[n - 2], pt, pt, true);
+}
+function emitSeg(p0, p1, p2, p3, final) {
+  const s = stroke, L = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  if (L < 1e-6) { if (final) drawPt(p2, true); return; }
+  const step = Math.max(0.6, Math.min(s.size * 0.12, 6 / Math.max(0.2, viewScale())));
+  const steps = Math.min(400, Math.max(1, Math.ceil(L / step)));
+  const k = (a, b) => Math.max(1e-3, Math.sqrt(Math.hypot(b.x - a.x, b.y - a.y)));
+  const t1 = k(p0, p1), t2 = t1 + L ** 0.5, t3 = t2 + k(p2, p3);
+  const lerp = (a, b, ta, tb, u) => { const f = (u - ta) / (tb - ta || 1e-3); return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }; };
+  const ln = (a, b, f) => a == null ? b : b == null ? a : a + (b - a) * f;
+  for (let i = 1; i <= steps; i++) {
+    const f = i / steps, u = t1 + (t2 - t1) * f;
+    const A1 = lerp(p0, p1, 0, t1, u), A2 = lerp(p1, p2, t1, t2, u), A3 = lerp(p2, p3, t2, t3, u);
+    const B1 = lerp(A1, A2, 0, t2, u), B2 = lerp(A2, A3, t1, t3, u), C = lerp(B1, B2, t1, t2, u);
+    drawPt({ x: C.x, y: C.y, p: ln(p1.p, p2.p, f), v: ln(p1.v, p2.v, f), d: ln(p1.d, p2.d, f) }, final && i === steps);
+  }
+}
+function drawPt(pt, final) {
   const s = stroke;
   if (s.cmode !== 'solid') {
     if (s.prevPt) s.dist += Math.hypot(pt.x - s.prevPt.x, pt.y - s.prevPt.y);
@@ -1900,7 +2512,7 @@ function endStroke() {
 function replayStroke(s) {
   s.total = s.pts[s.pts.length - 1].d;
   sctx.clearRect(0, 0, W, H);
-  s.last = null; s.lastMid = null; s.rem = 0; s.dist = 0; s.prevPt = null; s.dir = undefined; s.rng = seededRand(s.seed);
+  s.last = null; s.lastMid = null; s.rem = 0; s.dist = 0; s.prevPt = null; s.dir = undefined; s.cr = null; s.rng = seededRand(s.seed);
   if (s.tool === 'airbrush' && s.cmode !== 'solid') s.tip = getSoftTip(s.color);
   s.pts.forEach((q, i) => renderPoint(q, i === s.pts.length - 1));
 }
@@ -2210,23 +2822,23 @@ function renderBoneOverlay() {
     for (let f2 = 0; f2 < scene.frames; f2 += step) pts.push(tipOf(worldMats(o, f2)));
     pts.push(tipOf(worldMats(o, scene.frames - 1)));
     out.push(`<polyline points="${pts.map(p => F(p.x) + ',' + F(p.y)).join(' ')}" fill="none" stroke="#111" stroke-opacity=".5" stroke-width="${F(4.5 * u)}"/>`);
-    out.push(`<polyline points="${pts.map(p => F(p.x) + ',' + F(p.y)).join(' ')}" fill="none" stroke="#ffc53d" stroke-width="${F(2.5 * u)}" stroke-dasharray="${F(7 * u)} ${F(5 * u)}"/>`);
+    out.push(`<polyline points="${pts.map(p => F(p.x) + ',' + F(p.y)).join(' ')}" fill="none" stroke="#ffd23f" stroke-width="${F(2.5 * u)}" stroke-dasharray="${F(7 * u)} ${F(5 * u)}"/>`);
     sb.keys.forEach(k => { if (k.f >= scene.frames) return; const p = tipOf(worldMats(o, k.f));
-      out.push(`<circle cx="${F(p.x)}" cy="${F(p.y)}" r="${F((k.f === curF ? 7 : 5) * u)}" fill="#ffc53d" stroke="#111" stroke-width="${F(1.5 * u)}"/>`); });
+      out.push(`<circle cx="${F(p.x)}" cy="${F(p.y)}" r="${F((k.f === curF ? 7 : 5) * u)}" fill="#ffd23f" stroke="#111" stroke-width="${F(1.5 * u)}"/>`); });
   }
   for (const ob of scene.objects) {
     if (!ob.visible) continue;
     const act = ob.id === activeObjId, M = worldMats(ob, f);
     for (const b of ob.bones) {
       const m = M.get(b.id), P = m.transformPoint({ x: b.px, y: b.py }), T = m.transformPoint({ x: b.tx, y: b.ty });
-      const sel = act && b.id === selBoneId, col = sel ? '#ff6a3d' : '#ffffff', op = sel ? 0.85 : act ? (b.parent ? 0.45 : 0.28) : 0.18;
+      const sel = act && b.id === selBoneId, col = sel ? '#ffd23f' : '#ffffff', op = sel ? 0.85 : act ? (b.parent ? 0.45 : 0.28) : 0.18;
       const dx = T.x - P.x, dy = T.y - P.y, len = Math.hypot(dx, dy);
       if (len > 2) {
         const nx = -dy / len, ny = dx / len, w = Math.min(len * 0.14, 14 * u), mx = P.x + dx * 0.22, my = P.y + dy * 0.22;
         out.push(`<polygon points="${F(P.x)},${F(P.y)} ${F(mx + nx * w)},${F(my + ny * w)} ${F(T.x)},${F(T.y)} ${F(mx - nx * w)},${F(my - ny * w)}" fill="${col}" fill-opacity="${op}" stroke="#111" stroke-opacity="${Math.min(1, op + .15)}" stroke-width="${F(1.5 * u)}"/>`);
       }
-      out.push(`<circle cx="${F(P.x)}" cy="${F(P.y)}" r="${F((sel ? 9 : 7) * u)}" fill="${sel ? '#ff6a3d' : '#fff'}" fill-opacity="${act ? .95 : .35}" stroke="#111" stroke-width="${F(2 * u)}"/>`);
-      if (animMode === 'rig' && act) out.push(`<circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="#111" stroke-width="${F(5 * u)}"/><circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="${sel ? '#ff6a3d' : '#fff'}" stroke-width="${F(2.5 * u)}"/>`);
+      out.push(`<circle cx="${F(P.x)}" cy="${F(P.y)}" r="${F((sel ? 9 : 7) * u)}" fill="${sel ? '#ffd23f' : '#fff'}" fill-opacity="${act ? .95 : .35}" stroke="#111" stroke-width="${F(2 * u)}"/>`);
+      if (animMode === 'rig' && act) out.push(`<circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="#111" stroke-width="${F(5 * u)}"/><circle cx="${F(T.x)}" cy="${F(T.y)}" r="${F(7 * u)}" fill="none" stroke="${sel ? '#ffd23f' : '#fff'}" stroke-width="${F(2.5 * u)}"/>`);
       if (sel) out.push(`<text x="${F(P.x + 13 * u)}" y="${F(P.y - 13 * u)}" font-size="${F(15 * u)}" font-weight="700" fill="#fff" stroke="#111" stroke-width="${F(3.5 * u)}" paint-order="stroke" font-family="system-ui,sans-serif">${escapeHtml(b.name)}</text>`);
     }
   }
@@ -2730,6 +3342,7 @@ function updateDock() {
   $('rig-obj').textContent = o ? o.name : '—';
   $('an-play').textContent = playing ? '⏸' : '▶'; $('an-play').title = playing ? 'Pausa' : 'Reproducir';
   $('an-onion').classList.toggle('on', scene.onion);
+  $('an-loop').classList.toggle('on', scene.loop !== false);
   $('an-size').classList.toggle('on', !!settings.tlBig);
   $('an-bones').classList.toggle('on', showBones); $('an-sound').classList.toggle('on', !!scene.audio);
   const b = selBone(); ['rg-parent', 'rg-name', 'rg-up', 'rg-down', 'rg-del'].forEach(id => $(id).disabled = !b);
@@ -2760,7 +3373,7 @@ function rrect(c, x, y, w, h, r) {
 }
 function drawCellBlock(c, x, y, fw, cell, act, alpha) {
   c.save(); if (alpha) c.globalAlpha = alpha;
-  rrect(c, x + 1, y + 3, fw - 2, TLH - 6, 5); c.fillStyle = act ? '#ffc53d' : '#cfcfd8'; c.fill();
+  rrect(c, x + 1, y + 3, fw - 2, TLH - 6, 5); c.fillStyle = act ? '#ffd23f' : '#cfcfd8'; c.fill();
   if (fw >= 20 && cell) {
     const s = Math.min(fw - 7, TLH - 11), tx = x + (fw - s) / 2, ty = y + (TLH - s) / 2;
     c.fillStyle = '#fff'; c.fillRect(tx, ty, s, s); c.imageSmoothingEnabled = !pixelMode; c.drawImage(cellThumbOf(cell, 48), tx, ty, s, s);
@@ -2803,16 +3416,16 @@ function drawTimeline() {
       c.fillStyle = act ? '#2d2a1f' : (i % 2 ? '#202026' : '#1b1b20'); c.fillRect(0, y, wpx, TLH);
       keys.forEach((k, j) => {
         const k2 = j + 1 < keys.length ? Math.min(n, keys[j + 1]) : n;
-        if (k2 - k > 1 && k < n) { c.fillStyle = act ? '#ffc53d40' : '#ffffff1f'; rrect(c, X(k + 1), y + 10, (k2 - k - 1) * fw - 2, TLH - 20, 3); c.fill(); }
+        if (k2 - k > 1 && k < n) { c.fillStyle = act ? '#ffd23f40' : '#ffffff1f'; rrect(c, X(k + 1), y + 10, (k2 - k - 1) * fw - 2, TLH - 20, 3); c.fill(); }
         if (k < n && !(dragging && dr.item.from === k)) drawCellBlock(c, X(k), y, fw, r.l.cells.get(k), act);
       });
       if (dragging) drawCellBlock(c, X(dr.item.to), y, fw, r.l.cells.get(dr.item.from), true, 0.75);
     } else {
       const sel = r.b.id === selBoneId, ks = r.b.keys;
-      c.fillStyle = sel ? '#3a2922' : (i % 2 ? '#202026' : '#1b1b20'); c.fillRect(0, y, wpx, TLH);
+      c.fillStyle = sel ? '#14301f' : (i % 2 ? '#202026' : '#1b1b20'); c.fillRect(0, y, wpx, TLH);
       for (let j = 0; j < ks.length - 1; j++) {   // tramos: dónde el hueso se está moviendo
         const a = ks[j], b2 = ks[j + 1], moving = a.r !== b2.r || a.x !== b2.x || a.y !== b2.y || a.s !== b2.s;
-        c.fillStyle = moving ? (sel ? '#ff6a3daa' : '#ffffff55') : '#ffffff18';
+        c.fillStyle = moving ? (sel ? '#19a453aa' : '#ffffff55') : '#ffffff18';
         c.fillRect(X(a.f) + fw / 2, cy - 2, (b2.f - a.f) * fw, 4);
       }
       const s = Math.min(8, fw * 0.36 + 2), dragging = dr && dr.moved && dr.item && dr.item.kind === 'key' && dr.item.b === r.b;
@@ -2821,8 +3434,8 @@ function drawTimeline() {
         c.moveTo(x, cy - s); c.lineTo(x + s, cy); c.lineTo(x, cy + s); c.lineTo(x - s, cy); c.closePath();
         c.fillStyle = fill; c.fill(); c.strokeStyle = '#111'; c.lineWidth = 1.2; c.stroke(); c.restore();
       };
-      ks.forEach(k => { if (k.f < f0 - 1 || k.f > f1 + 1 || (dragging && dr.item.from === k.f)) return; dia(k.f, sel ? '#ff6a3d' : '#e9e9ef', 1); });
-      if (dragging) dia(dr.item.to, '#ff6a3d', 0.8);
+      ks.forEach(k => { if (k.f < f0 - 1 || k.f > f1 + 1 || (dragging && dr.item.from === k.f)) return; dia(k.f, sel ? '#ffd23f' : '#e9e9ef', 1); });
+      if (dragging) dia(dr.item.to, '#ffd23f', 0.8);
     }
   });
   if (!rows.length) {
@@ -2843,8 +3456,8 @@ function drawTimeline() {
   }
   // cabezal (cuadro actual)
   const px = X(curF), lw = Math.max(fw - 2, 24);
-  c.fillStyle = '#ff6a3d2a'; c.fillRect(px, TLR, fw, Hh - TLR);
-  c.fillStyle = '#ff6a3d'; c.fillRect(px + fw / 2 - 1, TLR - 2, 2, Hh);
+  c.fillStyle = '#1fbf5b2a'; c.fillRect(px, TLR, fw, Hh - TLR);
+  c.fillStyle = '#3fd47a'; c.fillRect(px + fw / 2 - 1, TLR - 2, 2, Hh);
   rrect(c, px + fw / 2 - lw / 2, 2, lw, TLR - 5, 5); c.fill();
   c.fillStyle = '#fff'; c.font = '800 11px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText(String(curF + 1), px + fw / 2, 10); c.textAlign = 'left';
   // nombres de las filas
@@ -2882,7 +3495,10 @@ function startPlay(silent = false) {
   const step = now => {
     if (!playing) return;
     let f = f0 + Math.floor((now - t0) / 1000 * scene.fps);
-    if (f >= scene.frames) { f0 = 0; t0 = now; f = 0; if (!silent) startAudioAt(0); }
+    if (f >= scene.frames) {
+      if (scene.loop === false && !silent) { curF = scene.frames - 1; stopPlay(); return; }
+      f0 = 0; t0 = now; f = 0; if (!silent) startAudioAt(0);
+    }
     if (f !== curF) { curF = f; renderAnim(); }
     playRaf = requestAnimationFrame(step);
   };
@@ -3036,7 +3652,9 @@ async function exportVideo() {
     if (bg) cx.drawImage(bg, 0, 0);
     else { cx.fillStyle = '#fff'; cx.fillRect(0, 0, vw, vh); cx.setTransform(vw / W, 0, 0, vh / H, 0, 0); drawLayersAt(cx, f); cx.setTransform(1, 0, 0, 1, 0, 0); }
     drawObjects(cx, f, base);
+    if (hasComic()) { cx.setTransform(vw / W, 0, 0, vh / H, 0, 0); drawComic(cx); cx.setTransform(1, 0, 0, 1, 0, 0); }
   };
+  await refreshComicCache();
   draw(0);
   const stream = cv.captureStream(scene.fps);
   let src = null;
@@ -3092,6 +3710,7 @@ async function exportSprites() {
       choices: opts.map(v => ({ label: `×${v}`, sub: `${W * v} × ${H * v} px por cuadro`, value: String(v) })), ok: null });
     if (!v) return; k = +v;
   }
+  await refreshComicCache();
   const cols = Math.min(n, 8), rows = Math.ceil(n / cols);
   const sc = Math.min(k, 8192 / (W * cols), 8192 / (H * rows));
   const fw = Math.max(1, Math.round(W * sc)), fh = Math.max(1, Math.round(H * sc));
@@ -3100,6 +3719,7 @@ async function exportSprites() {
     const ox = (f % cols) * fw, oy = Math.floor(f / cols) * fh;
     x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawLayersAt(x, f);
     drawObjects(x, f, new DOMMatrix([fw / W, 0, 0, fh / H, ox, oy]));
+    x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawComic(x);
   }
   x.setTransform(1, 0, 0, 1, 0, 0);
   try { await shareOrDownload(await canvasToBlob(sheet), `sprites_${n}cuadros_${fw}x${fh}_${stamp()}.png`, 'image/png'); }
@@ -3125,19 +3745,21 @@ async function sceneToData(forFile) {
     const a = scene.audio; audio = { name: a.name, start: a.start || 0, vol: a.vol ?? 1 };
     if (forFile) audio.url = `data:${a.blob.type || 'audio/webm'};base64,` + await blobToBase64(a.blob); else audio.blob = a.blob;
   }
-  return { fps: scene.fps, frames: scene.frames, ease: scene.ease, onion: scene.onion, curF, objSeq, objects, audio,
+  return { fps: scene.fps, frames: scene.frames, ease: scene.ease, onion: scene.onion, loop: scene.loop !== false, curF, objSeq, objects, audio, comic: hasComic() ? JSON.parse(comicSnap()) : null,
     onionBefore: scene.onionBefore, onionAfter: scene.onionAfter, onionOpacity: scene.onionOpacity, onionColor: scene.onionColor };
 }
 function resetScene(silent) {
   stopPlay();
-  Object.assign(scene, { fps: 12, frames: 36, ease: true, onion: false, objects: [], audio: null, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true });
+  Object.assign(scene, { fps: 12, frames: 36, ease: true, onion: false, loop: true, objects: [], audio: null, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true });
   curF = 0; activeObjId = null; selBoneId = null; poseClip = null;
+  comic = { panels: [], balloons: [] }; comicSel = null; comicDrag = null; renderComic(); refreshComicCache();
+  document.body.classList.toggle('has-comic', !!(curProject && curProject.kind === 'comic'));
   if (!silent) { prepareAudio(); renderAnim(); }
 }
 async function loadSceneData(d, fromFile) {
   resetScene(true);
   if (d) {
-    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.ease = d.ease !== false; scene.onion = !!d.onion;
+    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.ease = d.ease !== false; scene.onion = !!d.onion; scene.loop = d.loop !== false;
     scene.onionBefore = d.onionBefore ?? 2; scene.onionAfter = d.onionAfter ?? 1; scene.onionOpacity = d.onionOpacity ?? 0.4; scene.onionColor = d.onionColor !== false;
     curF = clamp(d.curF | 0, 0, scene.frames - 1);
     for (const od of d.objects || []) {
@@ -3157,6 +3779,11 @@ async function loadSceneData(d, fromFile) {
         if (blob) scene.audio = { blob, name: d.audio.name || 'Sonido', start: d.audio.start || 0, vol: d.audio.vol ?? 1 }; } catch (e) {}
     }
     activeObjId = scene.objects.length ? scene.objects[scene.objects.length - 1].id : null;
+    if (d.comic && Array.isArray(d.comic.panels)) {
+      comic = { panels: d.comic.panels || [], balloons: d.comic.balloons || [] };
+      renderComic(); await refreshComicCache();
+      document.body.classList.toggle('has-comic', hasComic() || !!(curProject && curProject.kind === 'comic'));
+    }
   }
   prepareAudio(); renderAnim();
 }
@@ -3170,6 +3797,8 @@ function setupAnimUI() {
   $('an-first').onclick = () => goFrame(0); $('an-prev').onclick = () => goFrame(curF - 1);
   $('an-next').onclick = () => goFrame(curF + 1); $('an-last').onclick = () => goFrame(scene.frames - 1);
   $('an-play').onclick = () => playing ? stopPlay() : startPlay();
+  $('an-loop').onclick = () => { scene.loop = scene.loop === false; animChanged(); updateDock();
+    toast(scene.loop ? '🔁 Bucle: la animación se repite sin parar' : '➡️ Sin bucle: se reproduce una vez y para en el último cuadro', 2200); };
   $('an-onion').onclick = () => { scene.onion = !scene.onion; animChanged();
     toast(scene.onion ? '🧅 Papel cebolla: lo anterior en rojo y lo siguiente en verde (en ⚙️ se ajusta)' : 'Papel cebolla apagado', 2600); };
   $('an-cfg').onclick = animSettings;
@@ -3287,7 +3916,7 @@ function drawLayersAt(ctx, f) {
   for (const l of layers) {
     if (!isShown(l)) continue;
     const src = l.anim ? cellAt(l, f) : visualCanvas(l); if (!src) continue;
-    ctx.globalAlpha = l.opacity; ctx.drawImage(src, 0, 0);
+    drawLayerTo(ctx, l, src);
   }
   ctx.globalAlpha = 1;
 }
@@ -3413,10 +4042,10 @@ function renderCellOnion() {
 
 /* ---------------- Balde de relleno ---------------- */
 function compositeLayers(ctx) {
-  for (const l of layers) { if (!isShown(l)) continue; ctx.globalAlpha = l.opacity; ctx.drawImage(visualCanvas(l), 0, 0); }
+  for (const l of layers) { if (!isShown(l)) continue; drawLayerTo(ctx, l, visualCanvas(l)); }
   ctx.globalAlpha = 1;
 }
-function compositeInto(ctx) { compositeLayers(ctx); if (scene.objects.length) drawObjects(ctx, animMode === 'rig' ? null : curF); }
+function compositeInto(ctx) { compositeLayers(ctx); if (scene.objects.length) drawObjects(ctx, animMode === 'rig' ? null : curF); drawComic(ctx); }
 function floodMask(d, sx, sy, tol) {
   const mask = new Uint8Array(W * H);
   const t = d[sy * W + sx], tr = t & 255, tg = (t >> 8) & 255, tb = (t >> 16) & 255, ta = t >>> 24;
@@ -3482,18 +4111,44 @@ function doFill(p) {
 const pickCanvas = makeCanvas(1, 1);
 const pickCtx = pickCanvas.getContext('2d', { willReadFrequently: true });
 let prevTool = 'brush';
-function doPick(p) {
+// Color que se ve en ese punto (todas las capas visibles), o null si es transparente
+function sampleAt(p) {
   const c = toCanvas(p), x = Math.floor(c.x), y = Math.floor(c.y);
-  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  if (x < 0 || y < 0 || x >= W || y >= H) return null;
   pickCtx.clearRect(0, 0, 1, 1);
-  for (const l of layers) { if (!isShown(l)) continue; pickCtx.globalAlpha = l.opacity; pickCtx.drawImage(visualCanvas(l), x, y, 1, 1, 0, 0, 1, 1); }
-  pickCtx.globalAlpha = 1;
+  for (const l of layers) { if (!isShown(l)) continue; pickCtx.globalAlpha = effOpacity(l); pickCtx.filter = layerFilter(l); pickCtx.drawImage(visualCanvas(l), x, y, 1, 1, 0, 0, 1, 1); }
+  pickCtx.globalAlpha = 1; pickCtx.filter = 'none';
   pickCtx.drawImage(animCanvas, x, y, 1, 1, 0, 0, 1, 1);
   const d = pickCtx.getImageData(0, 0, 1, 1).data;
-  if (d[3] === 0) return toast('Ahí no hay color');
-  setColor(rgbToHex(d[0], d[1], d[2])); pushRecent(settings.color);
+  return d[3] === 0 ? null : rgbToHex(d[0], d[1], d[2]);
+}
+function doPick(p) {
+  const hex = sampleAt(p);
+  if (!hex) return toast('Ahí no hay color');
+  setColor(hex); pushRecent(settings.color);
   toast('Color tomado', 900);
   setTool(prevTool);
+}
+// Cuentagotas con lupa: una gota invertida sobre el dedo; el círculo del medio muestra el color que se va a tomar
+let pickState = null;
+function startPick(e, p) {
+  mode = 'pick'; drawPointerId = e.pointerId; drawType = e.pointerType;
+  pickState = { hex: null }; $('loupe').hidden = false; movePick(p);
+}
+function movePick(p) {
+  const hex = sampleAt(p), L = $('loupe'), st = $('stage').getBoundingClientRect(), vr = viewport.getBoundingClientRect();
+  pickState.hex = hex;
+  L.style.left = (p.x + vr.left - st.left) + 'px'; L.style.top = (p.y + vr.top - st.top) + 'px';
+  $('loupe-new').setAttribute('fill', hex || '#00000000'); $('loupe-none').style.display = hex ? 'none' : '';
+  $('loupe-old').setAttribute('fill', settings.color);
+  $('loupe-hex').textContent = hex ? hex.toUpperCase() : 'sin color';
+}
+function endPick(cancel) {
+  $('loupe').hidden = true; mode = null;
+  const hex = pickState && pickState.hex; pickState = null;
+  if (cancel) return;
+  if (!hex) return toast('Ahí no hay color');
+  setColor(hex); pushRecent(settings.color); toast('💧 Color tomado', 900); setTool(prevTool);
 }
 
 /* =====================================================================
@@ -3564,6 +4219,8 @@ function beginPrimary(e, p, isTouch) {
   if (settings.tool === 'pan' || (isTouch && settings.penOnly)) return startPan(e.pointerId, p);
   if (isPaintTool()) return startStroke(e, p);
   if (settings.tool === 'select') return startSelect(e, p);
+  if (settings.tool === 'picker') return startPick(e, p);
+  if (settings.tool === 'comic') return comicDown(e, p);
   if (isTouch) { mode = 'tap'; return; }
   if (settings.tool === 'fill') doFill(p);
   else if (settings.tool === 'picker') doPick(p);
@@ -3588,6 +4245,8 @@ function onDown(e) {
       beginPrimary(e, p, true);
     } else if (touches.length === 2) {
       if (mode === 'draw') cancelStroke();
+      if (mode === 'pick') endPick(true);
+      if (mode === 'comic') comicUp(true);
       if (mode === 'adrag') cancelAdrag();
       if (mode === 'rhandle') cancelHandle();
       if (mode === 'select') cancelSelect();
@@ -3609,6 +4268,8 @@ function onMove(e) {
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     for (const ev of (evs.length ? evs : [e])) strokeMove(localPt(ev), ev);
   } else if (mode === 'select' && e.pointerId === drawPointerId) moveSelect(p);
+  else if (mode === 'pick' && e.pointerId === drawPointerId) movePick(p);
+  else if (mode === 'comic' && e.pointerId === drawPointerId) comicMove(p);
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) moveXDrag(p);
   else if (mode === 'adrag' && e.pointerId === drawPointerId) moveAdrag(toCanvas(p));
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) moveHandle(toCanvas(p));
@@ -3625,6 +4286,8 @@ function onUp(e) {
 
   if (mode === 'draw' && e.pointerId === drawPointerId) { endStroke(); mode = null; }
   else if (mode === 'select' && e.pointerId === drawPointerId) { endSelect(); mode = null; }
+  else if (mode === 'pick' && e.pointerId === drawPointerId) endPick(e.type === 'pointercancel');
+  else if (mode === 'comic' && e.pointerId === drawPointerId) comicUp(e.type === 'pointercancel');
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) { mode = null; xdrag = null; }
   else if (mode === 'adrag' && e.pointerId === drawPointerId) { mode = null; endAdrag(); }
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) { mode = null; endHandle(); }
@@ -3798,6 +4461,8 @@ function updateBars() {
   $('sel-hint').hidden = !!selection;
   document.querySelectorAll('[data-sa]').forEach(b => b.hidden = !selection);
   document.body.classList.toggle('has-bar', show);
+  if (show) $('comicbar').hidden = true; else updateComicBar();
+  renderComic();
 }
 
 /* ---- Color actual, círculo cromático y armonías ---- */
@@ -3949,6 +4614,8 @@ function showHelp() {
     <li><b>🦴 Huesos:</b> convertí un dibujo en objeto, armale huesos y movelo con <b>Posar</b>. Cada movimiento deja una clave 🔑.</li>
     <li><b>🔊 Sonido:</b> en Animar, el botón Sonido carga un audio o graba con el micrófono; se ve en la línea de tiempo y sale en el video.</li>
     <li><b>✍️ Forma del trazo</b> (tocá el pincel otra vez): puntas al empezar y al terminar, línea más fina si pasás rápido, y el <b>estabilizador</b> para líneas prolijas. Cada pincel —también los tuyos— recuerda su forma.</li>
+    <li><b>💬 Historieta:</b> con la herramienta Cómic armás la página de viñetas, agregás globos (diálogo, pensamiento, grito, narración, susurro), movés la cola con el punto amarillo y tocás el globo otra vez para cambiar el texto.</li>
+    <li><b>📁 Carpetas y ✨ efectos:</b> en 📚 Capas agrupás capas en carpetas plegables y les ponés efectos (brillo, color, blanco y negro, sombra…) a una capa o a toda la carpeta.</li>
     <li><b>🔒 Capas:</b> en 📚 podés bloquear una capa para no pintarla sin querer.</li>
     <li><b>Línea de tiempo:</b> tocá un cuadro para ir ahí; arrastrá un dibujo o una clave para cambiarlo de lugar.</li>
     <li><b>⬚ Elegir:</b> seleccionás una zona para pintar solo adentro, moverla, copiarla o recortar el lienzo.</li>
@@ -4036,6 +4703,7 @@ async function exportPNG() {
       choices: opts.map(v => ({ label: `×${v}`, sub: `${W * v} × ${H * v} px`, value: String(v) })), ok: null });
     if (!v) return; k = +v;
   }
+  await refreshComicCache();
   const c0 = makeCanvas(); compositeInto(c0.getContext('2d'));
   const c = k > 1 ? upscaleCanvas(c0, k) : c0;
   try { await shareOrDownload(await canvasToBlob(c), `${safeName(curProject && curProject.name)}_${stamp()}.png`, 'image/png'); }
@@ -4044,8 +4712,8 @@ async function exportPNG() {
 // Archivo .tokers: el proyecto entero en un solo archivo (para pasarlo a otro celular o guardar una copia)
 async function projectFileData() {
   return { app: 'Tokers', version: 5, name: curProject ? curProject.name : 'Proyecto', kind: curProject ? curProject.kind : (pixelMode ? 'pixel' : 'draw'),
-    w: W, h: H, pixel: pixelMode, active: activeIndex, scene: await sceneToData(true),
-    layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked,
+    w: W, h: H, pixel: pixelMode, active: activeIndex, scene: await sceneToData(true), folders: folders.filter(f => layers.some(l => l.folder === f.id)).map(f => ({ ...f })),
+    layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked, folder: l.folder || null, fx: l.fx || null,
       png: l.anim ? null : l.canvas.toDataURL('image/png'),
       cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, png: c.toDataURL('image/png') })) : null })) };
 }
@@ -4053,7 +4721,7 @@ async function projectFileData() {
 async function recordToFileData(meta, rec, sc) {
   const layersOut = [];
   for (const d of rec.layers) {
-    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, locked: !!d.locked, png: null, cells: null };
+    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, locked: !!d.locked, folder: d.folder || null, fx: d.fx || null, png: null, cells: null };
     if (d.anim) { o.cells = []; for (const c of d.cells || []) if (c.blob) o.cells.push({ f: c.f, png: await blobToDataURL(c.blob) }); }
     else if (d.blob) o.png = await blobToDataURL(d.blob);
     else { const e = makeCanvas(rec.w, rec.h); o.png = e.toDataURL('image/png'); }
@@ -4070,7 +4738,7 @@ async function recordToFileData(meta, rec, sc) {
     if (sc.audio && sc.audio.blob) { const { blob, ...a } = sc.audio; scene2.audio = { ...a, url: `data:${blob.type || 'audio/webm'};base64,` + await blobToBase64(blob) }; }
     else scene2.audio = null;
   }
-  return { app: 'Tokers', version: 5, name: meta.name, kind: meta.kind, w: rec.w, h: rec.h, pixel: !!rec.pixel, active: rec.active | 0, scene: scene2, layers: layersOut };
+  return { app: 'Tokers', version: 5, name: meta.name, kind: meta.kind, w: rec.w, h: rec.h, pixel: !!rec.pixel, active: rec.active | 0, scene: scene2, folders: rec.folders || [], layers: layersOut };
 }
 const fileBlob = data => new Blob([JSON.stringify(data)], { type: 'application/json' });
 async function saveProjectFile() {
@@ -4100,9 +4768,9 @@ async function openProjectFile(file) {
         for (const c of d.cells || []) { const cv = newCellCanvas(); cv.getContext('2d').drawImage(await loadImageURL(c.png), 0, 0, W, H); l.cells.set(c.f, cv); cellDirty.add(cv); }
       } else if (d.png) l.ctx.drawImage(await loadImageURL(d.png), 0, 0, W, H);
       l.opacity = Number.isFinite(+d.opacity) ? clamp(+d.opacity, 0, 1) : 1;
-      l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; ls.push(l);
+      l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; l.folder = d.folder || null; l.fx = d.fx || null; ls.push(l);
     }
-    replaceDocument(ls, data.active | 0, true);
+    replaceDocument(ls, data.active | 0, true, Array.isArray(data.folders) ? data.folders : []);
     await loadSceneData(data.scene || null, true);
     const anim = ls.some(l => l.anim) || scene.objects.length > 0;
     const name = uniqueName(String(data.name || file.name.replace(/\.[^.]+$/, '') || 'Proyecto').slice(0, 40));
@@ -4110,7 +4778,7 @@ async function openProjectFile(file) {
     projects.unshift(meta); curProject = meta;
     layers.forEach(l => l.dirty = true); fitView(); renderAnim(); updateBars();
     hideHome(); if (anim) setAnimMode('anim');
-    await saveNow(true);
+    await saveNow(true); await takeSnap(meta);
     toast(`📂 «${name}» quedó en tus proyectos`, 2600);
   } catch (e) { toast('No se pudo abrir el proyecto'); if (!curProject) showHome(); }
   finally { $('file-project').value = ''; }
@@ -4146,7 +4814,7 @@ async function idbDel(key) {
 /* ---------------- Proyectos ---------------- */
 // Cada proyecto se guarda aparte: 'p:<id>' (capas) y 'ps:<id>' (animación). La lista está en 'projects'.
 let projects = [], curProject = null;
-const KINDS = { draw: { ico: '🎨', name: 'Dibujo' }, pixel: { ico: '👾', name: 'Pixel art' }, anim: { ico: '🎬', name: 'Animación' } };
+const KINDS = { draw: { ico: '🎨', name: 'Dibujo' }, pixel: { ico: '👾', name: 'Pixel art' }, anim: { ico: '🎬', name: 'Animación' }, comic: { ico: '💬', name: 'Historieta' } };
 const newProjectId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function uniqueName(base) {
   let n = base, i = 2;
@@ -4177,6 +4845,7 @@ async function loadProjects() {
 }
 // Miniatura para la pantalla de inicio
 async function makeThumb() {
+  await refreshComicCache();
   const c0 = makeCanvas(); compositeInto(c0.getContext('2d'));
   const k = Math.min(1, 320 / Math.max(W, H)), t = makeCanvas(Math.max(1, Math.round(W * k)), Math.max(1, Math.round(H * k))), x = t.getContext('2d');
   x.imageSmoothingEnabled = !pixelMode; x.imageSmoothingQuality = 'high';
@@ -4190,7 +4859,7 @@ function setThumb(p, blob) {
   p.thumb = blob;
 }
 let saveTimer = null, saving = null, saveAgain = false;
-function scheduleSave(delay = 1500) { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, delay); }
+function scheduleSave(delay = 1500) { clearTimeout(saveTimer); saveTimer = setTimeout(() => (mode === 'draw' || playing) ? scheduleSave(900) : saveNow(), delay); }
 function saveNow(withThumb) {
   clearTimeout(saveTimer);
   if (xform || !curProject) return Promise.resolve();   // se guarda cuando se confirma el movimiento
@@ -4202,12 +4871,12 @@ function saveNow(withThumb) {
         if (l.anim) { for (const c of l.cells.values()) if (!cellBlob.has(c) || cellDirty.has(c)) { cellDirty.delete(c); cellBlob.set(c, await canvasToBlob(c)); } }
         else if (l.dirty || !l.blob) { l.dirty = false; l.blob = await canvasToBlob(l.canvas); }
       }
-      await idbPut('p:' + P.id, { version: 3, w: W, h: H, pixel: pixelMode, active: activeIndex, onion,
-        layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked,
+      await idbPut('p:' + P.id, { version: 3, w: W, h: H, pixel: pixelMode, active: activeIndex, onion, folders: folders.filter(f => layers.some(l => l.folder === f.id)).map(f => ({ ...f })),
+        layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked, folder: l.folder || null, fx: l.fx || null,
           blob: l.anim ? null : l.blob, cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, blob: cellBlob.get(c) })) : null })) });
       await idbPut('ps:' + P.id, await sceneToData(false));
       P.updated = Date.now(); P.w = W; P.h = H; P.changed = true;
-      if (withThumb === true || !P.thumb || Date.now() - (P.thumbAt || 0) > 20000) { setThumb(P, await makeThumb()); P.thumbAt = Date.now(); }
+      if (withThumb === true || !P.thumb || Date.now() - (P.thumbAt || 0) > 90000) { setThumb(P, await makeThumb()); P.thumbAt = Date.now(); }
       await saveIndex();
     } catch (e) { console.warn('Autoguardado no disponible', e); }
     finally { saving = null; if (saveAgain) { saveAgain = false; scheduleSave(600); } }
@@ -4236,11 +4905,11 @@ async function loadProjectDoc(p) {
         l.anim = true; l.blank = l.canvas; l.cells = new Map();
         for (const c of d.cells || []) { if (!c.blob) continue; const cv = newCellCanvas(); cv.getContext('2d').drawImage(await blobToDrawable(c.blob), 0, 0); l.cells.set(c.f, cv); cellBlob.set(cv, c.blob); }
       } else if (d.blob) l.ctx.drawImage(await blobToDrawable(d.blob), 0, 0);
-      l.opacity = d.opacity ?? 1; l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked;
+      l.opacity = d.opacity ?? 1; l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; l.folder = d.folder || null; l.fx = d.fx || null;
       l.blob = d.blob; l.dirty = false; ls.push(l);
     }
     onion = !!rec.onion;
-    replaceDocument(ls, rec.active | 0, true);
+    replaceDocument(ls, rec.active | 0, true, Array.isArray(rec.folders) ? rec.folders : []);
     try { await loadSceneData(await idbGet('ps:' + p.id), false); } catch (e) { await loadSceneData(null, false); }
     return true;
   } catch (e) { return false; }
@@ -4308,6 +4977,54 @@ async function goHome() {
   curProject = null;
   showHome();
 }
+// Lo guardado al abrir el proyecto: sirve para «descartar los cambios»
+let openSnap = null;
+async function takeSnap(p) {
+  try { openSnap = { id: p.id, rec: await idbGet('p:' + p.id), sc: await idbGet('ps:' + p.id), meta: { ...p, thumbURL: null } }; }
+  catch (e) { openSnap = null; }
+}
+async function discardChanges() {
+  const P = curProject, S = openSnap; if (!P) return;
+  clearTimeout(saveTimer); saveAgain = false;
+  while (saving) await saving;
+  curProject = null;
+  try {
+    if (S && S.id === P.id && S.rec) {
+      await idbPut('p:' + P.id, S.rec);
+      if (S.sc) await idbPut('ps:' + P.id, S.sc); else await idbDel('ps:' + P.id);
+      setThumb(P, null); Object.assign(P, S.meta, { thumbURL: null });
+    } else {   // era nuevo: se borra
+      try { await idbDel('p:' + P.id); await idbDel('ps:' + P.id); } catch (e) {}
+      setThumb(P, null); projects = projects.filter(x => x !== P);
+    }
+    await saveIndex();
+  } catch (e) {}
+}
+// ☰ → Nuevo trabajo: guardar o descartar lo actual y elegir qué hacer
+async function newWork() {
+  if (stroke) return;
+  if (xform) commitTransform();
+  stopPlay();
+  if (curProject) {
+    const v = await dialog({ title: '📄 Nuevo trabajo', text: `¿Qué hacemos con «${curProject.name}»?`, cancel: 'Cancelar', ok: null, choices: [
+      { label: '💾 Guardar y empezar otro', sub: 'queda en Mis proyectos', value: 'save' },
+      { label: '🗑️ Descartar los cambios', sub: openSnap && openSnap.rec ? 'vuelve a como estaba al abrirlo' : 'se borra este trabajo nuevo', value: 'discard' }] });
+    if (!v) return;
+    if (v === 'discard') {
+      const ok = await dialog({ title: '¿Seguro?', text: 'Los cambios que hiciste desde que lo abriste se pierden.', ok: 'Descartar' });
+      if (!ok) return;
+    }
+    if (animMode) setAnimMode(null);
+    if (v === 'save') { toast('Guardando…', 1200); await flushSave(); await backupToPhone(curProject); curProject = null; }
+    else await discardChanges();
+  }
+  const kind = await dialog({ title: '¿Qué querés hacer?', cancel: 'Volver al inicio', ok: null, choices: [
+    { label: '🎨 Dibujar', sub: 'ilustración y pintura', value: 'draw' },
+    { label: '👾 Pixel art', sub: 'píxel por píxel', value: 'pixel' },
+    { label: '🎬 Animación', sub: 'cuadro a cuadro o huesos', value: 'anim' },
+    { label: '💬 Historieta', sub: 'viñetas y globos de diálogo', value: 'comic' }] });
+  if (!kind || !(await newProject(kind))) showHome();
+}
 async function openProject(p) {
   if (opening) return; opening = true;
   try {
@@ -4315,29 +5032,31 @@ async function openProject(p) {
     if (animMode) setAnimMode(null);
     curProject = p;
     if (!(await loadProjectDoc(p))) { curProject = null; return toast('No se pudo abrir ese proyecto'); }
+    await takeSnap(p);
     fitView(); updateBars(); renderAnim(); hideHome();
     if (animLayers().length || scene.objects.length) setAnimMode('anim');
   } finally { opening = false; }
 }
 let opening = false;
 async function newProject(kind) {
-  const def = kind === 'pixel' ? [64, 64] : kind === 'anim' ? [1280, 720] : [2048, 2048];
-  const titles = { draw: '🎨 Nuevo dibujo', pixel: '👾 Nuevo pixel art', anim: '🎬 Nueva animación' };
+  const def = kind === 'pixel' ? [64, 64] : kind === 'anim' ? [1280, 720] : kind === 'comic' ? [1448, 2048] : [2048, 2048];
+  const titles = { draw: '🎨 Nuevo dibujo', pixel: '👾 Nuevo pixel art', anim: '🎬 Nueva animación', comic: '💬 Nueva historieta' };
   const notes = { draw: 'Elegí un formato o escribí la medida que quieras (hasta 2048 px por lado).',
-    anim: 'Para animar conviene una hoja no tan grande: se mueve más liviana. Hasta 2048 px por lado.' };
+    anim: 'Para animar conviene una hoja no tan grande: se mueve más liviana. Hasta 2048 px por lado.',
+    comic: 'La medida de la página. 1448 × 2048 es como una hoja A4 parada.' };
   let how = null;
   if (kind === 'anim') {
     how = await dialog({ title: '🎬 ¿Cómo querés animar?', text: 'Después podés mezclar las dos formas en la misma animación, y agregarle sonido con 🔊.', ok: null, choices: [
       { label: '✏️ Cuadro a cuadro', sub: 'dibujás cada cuadro, con papel cebolla', value: 'cells' },
       { label: '🦴 Con huesos (rigging)', sub: 'dibujás el personaje y movés sus partes', value: 'bones' }] });
-    if (!how) return;
+    if (!how) return false;
   }
   const size = await askSize(titles[kind], def[0], def[1], 'Empezar', notes[kind] || '', false, kind === 'pixel');
-  if (!size) return;
+  if (!size) return false;
   let n = projects.filter(p => p.kind === kind).length + 1, name = `${KINDS[kind].name} ${n}`;
   while (projects.some(p => p.name === name)) name = `${KINDS[kind].name} ${++n}`;
   const meta = { id: newProjectId(), name, kind, w: size[0], h: size[1], created: Date.now(), updated: Date.now(), thumb: null };
-  projects.unshift(meta); curProject = meta; saveIndex();
+  projects.unshift(meta); curProject = meta; saveIndex(); openSnap = { id: meta.id, rec: null };
   if (animMode) setAnimMode(null);
   if (kind === 'pixel' && settings.palette === 'Básica') { settings.palette = 'PICO-8'; renderPalette(); }
   setDocSize(size[0], size[1]); setPixelMode(kind === 'pixel'); setDocSize(size[0], size[1]); resetScene();
@@ -4353,9 +5072,14 @@ async function newProject(kind) {
       <li>Dibujá el personaje en la capa «Personaje» (mejor cada parte —cabeza, brazos, piernas— en su propia capa).</li>
       <li>Tocá <b>🦴 Huesos</b> abajo: elegí las capas y se convierte en un objeto.</li>
       <li>Rodeá cada parte y tocá <b>Hacer hueso</b>. Después, con <b>Posar</b>, la movés y se guarda una clave 🔑 en la línea de tiempo.</li></ol>` });
+  } else if (kind === 'comic') {
+    document.body.classList.add('has-comic'); setTool('comic');
+    await pageTemplate();
+    toast('💬 Dibujá adentro de las viñetas con el pincel. Con 💬 Cómic agregás globos y cambiás las viñetas', 4500);
   } else if (kind === 'pixel') toast('👾 Acercá con dos dedos para ver la cuadrícula. El lápiz pinta píxel por píxel.', 4000);
   else toast(`🎨 «${name}» se guarda solo. Volvés a tus proyectos con ☰ → 🏠`, 3500);
   scheduleSave(300);
+  return true;
 }
 async function projectMenu(p) {
   const v = await dialog({ title: `${(KINDS[p.kind] || KINDS.draw).ico} ${p.name}`, text: `${p.w} × ${p.h} px · ${agoText(p.updated || Date.now())}`, cancel: 'Cerrar', ok: null, choices: [
@@ -4525,6 +5249,11 @@ function setupUI() {
   $('chk-penonly').onchange = e => { settings.penOnly = e.target.checked; settings.penAsked = true; saveSettings(); };
   $('chk-sampleall').onchange = e => { settings.sampleAll = e.target.checked; saveSettings(); };
 
+  // historieta
+  const cmActs = { page: pageTemplate, panel: addPanel, talk: () => addBalloon('talk'), think: () => addBalloon('think'), shout: () => addBalloon('shout'),
+    narr: () => addBalloon('narr'), whisper: () => addBalloon('whisper'), text: comicEditText, smaller: () => comicFont(1 / 1.15), bigger: () => comicFont(1.15),
+    front: comicToFront, dup: comicDuplicate, del: comicDelete, done: () => { comicSel = null; setTool(settings.brushType || 'brush'); } };
+  document.querySelectorAll('[data-cmc]').forEach(b => b.onclick = () => cmActs[b.dataset.cmc]());
   // selección y transformación
   document.querySelectorAll('[data-selmode]').forEach(b => b.onclick = () => { settings.selMode = b.dataset.selmode; saveSettings(); updateBars(); });
   const selActs = { obj: () => convertDialog(false), move: startTransform, copy: () => selToLayer(false), cut: () => selToLayer(true), fill: selFill,
@@ -4547,16 +5276,28 @@ function setupUI() {
   $('btn-onion').onclick = () => { onion = !onion; applyLayerStyles(); scheduleSave();
     toast(onion ? '🧅 Cebolla de capas: la de abajo se ve en rojo y la de arriba en verde' : 'Cebolla de capas apagada', 2600); };
   $('lop-range').addEventListener('input', e => {
+    const F = folderById(selFolder);
+    if (F) { F.opacity = +e.target.value / 100; $('lop-val').textContent = e.target.value + '%'; applyLayerStyles(); return; }
     const l = layers[activeIndex]; l.opacity = +e.target.value / 100;
     $('lop-val').textContent = e.target.value + '%'; applyLayerStyles();
   });
   $('lop-range').addEventListener('change', () => { renderLayerPanel(); scheduleSave(); });
-  const acts = { clip: actClip, up: () => actMove(1), down: () => actMove(-1), dup: actDuplicate, merge: actMerge,
+  const acts = { clip: actClip, up: () => actMoveStruct(1), down: () => actMoveStruct(-1), dup: actDuplicate, merge: actMerge,
+    folder: actFolder, fx: () => { const F = folderById(selFolder); F ? openEffects(F, true) : openEffects(layers[activeIndex], false); },
     rename: actRename, clear: actClear, import: () => $('file-image').click(),
     obj: () => { closePanels(); convertDialog(false); }, anim: () => { closePanels(); actAnimLayer(); }, delete: actDelete };
-  document.querySelectorAll('#layer-actions button').forEach(b => b.onclick = () => { if (xform) commitTransform(); acts[b.dataset.act](); });
+  document.querySelectorAll('#layer-actions button').forEach(b => b.onclick = () => {
+    if (xform) commitTransform();
+    const k = b.dataset.act, F = folderById(selFolder);
+    if (F) {   // con una carpeta elegida
+      if (k === 'rename') return (async () => { const v = await dialog({ title: 'Nombre de la carpeta', input: F.name, ok: 'Guardar' }); if (v && v.trim()) { F.name = v.trim().slice(0, 40); refreshLayers(); scheduleSave(); } })();
+      if (k === 'delete') return deleteFolder(F);
+      if (!['up', 'down', 'fx', 'import'].includes(k)) return toast('Eso es para una capa: tocá una capa de la lista', 2200);
+    }
+    acts[k]();
+  });
 
-  const menu = { home: goHome, import: () => $('file-image').click(), export: exportPNG, save: saveProjectFile,
+  const menu = { home: goHome, newwork: newWork, comic: () => { if (animMode) setAnimMode(null); document.body.classList.add('has-comic'); setTool('comic'); toast('💬 Agregá viñetas y globos con la barra de abajo', 2600); }, import: () => $('file-image').click(), export: exportPNG, save: saveProjectFile,
     open: () => $('file-project').click(), install: installApp, help: showHelp,
     intro: () => { settings.introVideo = !settings.introVideo; saveSettings(); updateIntroLabel();
       toast(settings.introVideo ? 'El video se va a ver al abrir la app' : 'La app va a abrir solo con el logo'); },
