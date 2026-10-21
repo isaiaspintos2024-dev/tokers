@@ -1389,6 +1389,12 @@ function replaceDocument(newLayers, active, fromStorage = false, fds = []) {
 const undoStack = [], redoStack = [];
 let histBytes = 0;
 function pushHistory(entry) {
+  if (typeof lastCellCreated !== 'undefined' && lastCellCreated) {
+    const lc = lastCellCreated, e0 = entry; lastCellCreated = null;
+    entry = { bytes: e0.bytes || 0,
+      undo() { e0.undo(); if (lc.l.cells && lc.l.cells.get(lc.f) === lc.c) { lc.l.cells.delete(lc.f); showCell(lc.l); refreshLayers(); requestRender(); scheduleSave(); } },
+      redo() { if (lc.l.cells && !lc.l.cells.has(lc.f)) { lc.l.cells.set(lc.f, lc.c); cellDirty.add(lc.c); showCell(lc.l); } e0.redo(); refreshLayers(); requestRender(); } };
+  }
   entry.bytes = entry.bytes || 0;
   for (const r of redoStack) histBytes -= r.bytes;
   redoStack.length = 0;
@@ -2313,6 +2319,16 @@ function updateXfUi() {
   s.forEach(([X, Y]) => { ui += `<circle cx="${X}" cy="${Y}" r="14" fill="#ffd23f" fill-opacity=".9" stroke="#111" stroke-width="2"/>`; });
   xfUi.innerHTML = ui;
 }
+function quadConvex(q) {   // las 4 esquinas forman una figura convexa (sin cruces ni hundidos)
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [ax, ay] = q[i], [bx, by] = q[(i + 1) % 4], [cx, cy] = q[(i + 2) % 4];
+    const cr = (bx - ax) * (cy - by) - (by - ay) * (cx - bx);
+    if (Math.abs(cr) < 1e-6) return false;
+    if (!sign) sign = Math.sign(cr); else if (Math.sign(cr) !== sign) return false;
+  }
+  return true;
+}
 function quadCorner(p) {   // ¿tocó una esquina? (en píxeles de pantalla)
   if (!xform || !xform.quad) return -1;
   let best = -1, bd = 34;
@@ -2472,6 +2488,7 @@ function cancelTransform() {
   xform = null; floatCanvas.style.display = 'none'; updateXfUi();
   restoreSnapshot(x.layer, x.before);
   setSelection(x.sel);
+  dropCreatedCell();
 }
 
 /* =====================================================================
@@ -2544,7 +2561,7 @@ function startStroke(e, p) {
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
   stroke.dyn = (!pixelMode && DYN_TOOLS.includes(tool)) ? getDyn(tool) : null;
   stroke.tlen = taperLen(settings.size); stroke.pts = []; stroke.len = 0; stroke.total = null;
-  stroke.estLen = 600 / viewScale();   // largo probable mientras se dibuja (equivale a 600 px de pantalla)
+  stroke.estLen = 600 / viewScale(); stroke.t0 = performance.now();   // largo probable mientras se dibuja (equivale a 600 px de pantalla)
   stroke.seed = (Math.random() * 1e9) | 0; stroke.rng = seededRand(stroke.seed);
   // transición de colores a lo largo del trazo
   stroke.cmode = (erasing || smudging || tool === 'gradient') ? 'solid' : settings.colorMode;
@@ -2605,9 +2622,9 @@ function pf(q) {
   const D = s.dyn; if (!D) return f;
   if (q.v != null) f *= q.v;
   // Largo de cada punta (en píxeles de la hoja): nunca más del 45 % del trazo, así el medio llega siempre al tamaño elegido
-  if (D.start > 0) f *= taperF(q.d / (D.start * Math.min(s.tlen, 0.45 * (s.total != null ? s.total : Math.max(s.len, s.estLen)))));
-  if (D.end > 0 && s.total != null) f *= taperF((s.total - q.d) / (D.end * Math.min(s.tlen, 0.45 * s.total)));
-  return f;
+  if (D.start > 0) f *= taperF(q.d / Math.max(1e-6, D.start * Math.min(s.tlen, 0.45 * (s.total != null ? s.total : Math.max(s.len, s.estLen)))));
+  if (D.end > 0 && s.total != null) f *= taperF((s.total - q.d) / Math.max(1e-6, D.end * Math.min(s.tlen, 0.45 * s.total)));
+  return Number.isFinite(f) ? f : 1;
 }
 function grow(x, y, r) {
   const b = stroke.bbox; r += 3;
@@ -2811,7 +2828,9 @@ function endStroke() {
     const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
     f.d = s.len + (s.sp ? Math.hypot(f.x - s.sp.x, f.y - s.sp.y) : 0);
     s.pts.push(f);
-    if (s.dyn && (s.dyn.end > 0 || s.dyn.start > 0) && s.pts.length > 1) replayStroke(s);   // rehace el trazo con las puntas según su largo real
+    const tap = f.d * viewScale() < 4;   // un toque suelto: punto del tamaño completo
+    if (tap && s.dyn && (s.dyn.end > 0 || s.dyn.start > 0)) { s.dyn = null; replayStroke(s); }
+    else if (s.dyn && (s.dyn.end > 0 || s.dyn.start > 0) && s.pts.length > 1) replayStroke(s);   // rehace el trazo con las puntas según su largo real
     else renderPoint(f, true);
   }
   if (s.raf) cancelAnimationFrame(s.raf);
@@ -2853,6 +2872,7 @@ function cancelStroke() {
   strokeCanvas.style.display = 'none';
   stroke = null; mode = null;
   if (s.clipped) renderClip(s.layer);
+  dropCreatedCell();
 }
 
 /* =====================================================================
@@ -4244,8 +4264,15 @@ function ensureCell(l) {
   const held = cellAt(l, curF), c = newCellCanvas();
   if (held && settings.cellMode !== 'empty') c.getContext('2d').drawImage(held, 0, 0);
   l.cells.set(curF, c); cellDirty.add(c);
+  lastCellCreated = { l, f: curF, c };
   showCell(l); applyLayerStyles(); requestRender();
   return true;
+}
+// Si una acción creó un dibujo nuevo en el cuadro, deshacerla también lo saca (vuelve a verse el dibujo anterior)
+let lastCellCreated = null;
+function dropCreatedCell() {
+  const lc = lastCellCreated; lastCellCreated = null;
+  if (lc && lc.l.cells && lc.l.cells.get(lc.f) === lc.c) { lc.l.cells.delete(lc.f); showCell(lc.l); refreshLayers(); requestRender(); }
 }
 function cellThumbOf(c, size) {
   let t = cellThumb.get(c);
@@ -4308,7 +4335,7 @@ async function stopAnimLayer(l) {
   const ok = await dialog({ title: 'Dejar la capa fija', text: `«${l.name}» va a quedar con el dibujo que se ve ahora (cuadro ${curF + 1}). Los otros dibujos de esta capa se borran.`, ok: 'Dejar fija' });
   if (!ok) return;
   const cells = l.cells, blank = l.blank;
-  const off = () => { l.anim = false; l.cells = null; l.blank = null; refreshLayers(); animChanged(); };
+  const off = () => { l.anim = false; l.cells = null; l.blank = null; l.dirty = true; l.blob = null; updateThumb(l); refreshLayers(); animChanged(); scheduleSave(); };
   const on = () => { l.anim = true; l.cells = cells; l.blank = blank; showCell(l); refreshLayers(); animChanged(); };
   off(); pushHistory({ bytes: 0, undo: on, redo: off });
 }
@@ -4558,7 +4585,11 @@ function startXDrag(e, p) { mode = 'xdrag'; drawPointerId = e.pointerId; drawTyp
 function moveXDrag(p) {
   const c = toCanvas(p);
   if (xform.quad && xdrag.q0) {
-    if (xdrag.corner >= 0) xform.quad[xdrag.corner] = [c.x, c.y];
+    if (xdrag.corner >= 0) {
+      const q = xform.quad.map(v => v.slice()); q[xdrag.corner] = [c.x, c.y];
+      if (!quadConvex(q)) { if (!xdrag.warned) { xdrag.warned = true; toast('La esquina no puede cruzarse ni hundirse: la figura tiene que quedar abierta', 2200); } return; }
+      xform.quad = q;
+    }
     else { const dx = c.x - xdrag.c0.x, dy = c.y - xdrag.c0.y; xform.quad = xdrag.q0.map(([a, b]) => [a + dx, b + dy]); }
     return drawFloat();
   }
@@ -4610,7 +4641,10 @@ function onDown(e) {
       if (mode) return;
       beginPrimary(e, p, true);
     } else if (touches.length === 2) {
-      if (mode === 'draw') cancelStroke();
+      if (mode === 'draw') {   // un trazo largo ya hecho se guarda; uno recién empezado se anula (era el comienzo de un gesto)
+        const st = stroke, kept = st && (performance.now() - st.t0 > 300 || st.len * viewScale() > 40);
+        if (kept) { endStroke(); mode = null; } else cancelStroke();
+      }
       if (mode === 'pick') endPick(true);
       if (mode === 'comic') comicUp(true);
       if (mode === 'persp') { perspDrag = null; }
@@ -5225,7 +5259,7 @@ async function makeThumb() {
   const k = Math.min(1, 320 / Math.max(W, H)), t = makeCanvas(Math.max(1, Math.round(W * k)), Math.max(1, Math.round(H * k))), x = t.getContext('2d');
   x.imageSmoothingEnabled = !pixelMode; x.imageSmoothingQuality = 'high';
   if (pixelMode && k < 1) x.imageSmoothingEnabled = true;
-  if (pixelMode && W * 4 <= 320) { const s = Math.floor(320 / Math.max(W, H)); t.width = W * s; t.height = H * s; x.imageSmoothingEnabled = false; }
+  if (pixelMode && Math.max(W, H) * 2 <= 320) { const s = Math.max(1, Math.floor(320 / Math.max(W, H))); t.width = W * s; t.height = H * s; x.imageSmoothingEnabled = false; }
   x.drawImage(c0, 0, 0, t.width, t.height);
   return canvasToBlob(t);
 }
@@ -5693,7 +5727,9 @@ function setupUI() {
   $('file-project').onchange = e => openProjectFile(e.target.files[0]);
 
   window.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+    const tg = e.target;
+    if (tg.tagName === 'TEXTAREA' || tg.isContentEditable || (tg.tagName === 'INPUT' && !['checkbox', 'radio', 'range', 'button', 'color'].includes(tg.type))) return;   // escribiendo texto
+    if ($('modal').classList.contains('open')) { if (e.key === 'Escape' && closeModal) closeModal(); return; }   // con un cuadro abierto no hay atajos
     const k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
