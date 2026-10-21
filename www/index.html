@@ -203,6 +203,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/12px 12px}
 .lthumb canvas{width:100%;height:100%;display:block}
 .lrow.off .lthumb{opacity:.3}
+.llock{opacity:.45}
+.lrow.locked .llock{opacity:1}
+.lrow.locked .lthumb{outline:2px dashed #ffb35a;outline-offset:-2px}
 .linfo{flex:1;min-width:0}
 .lname{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lmeta{font-size:11px;color:var(--muted)}
@@ -280,6 +283,8 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
 .libitem img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/14px 14px}
 .libitem span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+#dyn-prev{display:block;width:100%;height:64px;border-radius:12px;background:#f4f1ea;margin:4px 0 10px}
+.ptitle small{font-weight:400;color:var(--muted)}
 .chip{padding:7px 10px;border-radius:999px;background:var(--panel2);font-size:12.5px;color:#e6e6ee;border:2px solid transparent}
 .chip small{color:var(--muted)}
 .chip.on{border-color:var(--accent)}
@@ -326,12 +331,13 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
 #splash.hide{opacity:0;pointer-events:none}
 #splash.video{background:#000}
 #splash-logo{display:flex;flex-direction:column;align-items:center}
+.logo-img{width:min(52vw,34vh,260px);height:auto;margin-bottom:6px;filter:drop-shadow(0 10px 30px #000a);animation:logoIn .9s cubic-bezier(.2,.9,.3,1.2) both}
 #intro{width:min(94vw,86vh,620px);height:auto;aspect-ratio:1;object-fit:contain;animation:introIn .5s ease both}
 @keyframes introIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 #splash-ctrls{position:absolute;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;gap:10px}
 #splash-ctrls button{padding:10px 16px;border-radius:999px;background:#ffffff1f;border:1px solid #ffffff33;color:#fff;font-size:15px;
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.logo{font-size:clamp(60px,17vw,128px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:1;padding:0 .12em;
+.logo{font-size:clamp(44px,12vw,92px);font-weight:900;font-style:italic;letter-spacing:-.035em;line-height:1;padding:0 .12em;
   background:linear-gradient(100deg,var(--accent2),var(--accent) 55%,var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent;
   animation:logoIn 1s cubic-bezier(.2,.8,.2,1) both}
 .logo-stroke{width:min(68vw,420px);height:auto;margin-top:2px}
@@ -369,6 +375,8 @@ body.has-bar #toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 .home-in{max-width:900px;margin:0 auto}
 .home-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.home-brand{display:flex;align-items:center;gap:12px}
+.home-brand img{width:58px;height:58px;filter:drop-shadow(0 4px 10px #0009)}
 .home-logo{font-size:34px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,#ffc53d,#ff6a3d 55%,#ff3d7f);
   -webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.1}
 .home-logo small{display:block;font-size:11px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);-webkit-text-fill-color:var(--muted)}
@@ -412,6 +420,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 <div id="splash">
   <video id="intro" muted playsinline preload="auto" hidden><source src="intro.webm" type="video/webm"><source src="intro.mp4" type="video/mp4"></video>
   <div id="splash-logo">
+    <img class="logo-img" src="logo.png" alt="">
     <div class="logo">Toker's</div>
     <svg class="logo-stroke" viewBox="0 0 420 40" aria-hidden="true">
       <defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#ffc53d"/><stop offset=".55" stop-color="#ff6a3d"/><stop offset="1" stop-color="#ff3d7f"/></linearGradient></defs>
@@ -428,7 +437,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 <div id="home" hidden>
   <div class="home-in">
     <div class="home-top">
-      <div class="home-logo">Toker's<small>Estudio de dibujo</small></div>
+      <div class="home-brand"><img src="logo.png" alt=""><div class="home-logo">Toker's<small>Estudio de dibujo</small></div></div>
       <button class="hbtn2" id="home-help">❔ Ayuda</button>
     </div>
     <div class="home-h">Nuevo trabajo</div>
@@ -636,10 +645,20 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
             <button class="btn-line sm" id="brush-del" title="Borrar">🗑️</button>
           </div>
         </div>
+        <div id="dyn-sec" class="nopix">
+          <div class="sep"></div>
+          <div class="ptitle">✍️ Forma del trazo <small id="dyn-for"></small></div>
+          <canvas id="dyn-prev" width="600" height="128"></canvas>
+          <div class="chips" id="dyn-presets"></div>
+          <div class="field"><label>Punta al empezar <b id="dyn-start-val">0%</b></label><input type="range" id="dyn-start" min="0" max="100"></div>
+          <div class="field"><label>Punta al terminar <b id="dyn-end-val">0%</b></label><input type="range" id="dyn-end" min="0" max="100"></div>
+          <div class="field"><label>Más fina si pasás rápido <b id="dyn-speed-val">0%</b></label><input type="range" id="dyn-speed" min="0" max="100"></div>
+        </div>
+        <div class="field nopix"><label>〰️ Estabilizador <b id="smooth-val">30%</b></label><input type="range" id="smooth-range" min="0" max="100"></div>
+        <p class="hint nopix" style="margin:-4px 0 10px">Más alto = líneas más prolijas: el pincel sigue al dedo «con una cuerda» y no copia los temblores.</p>
         <div class="sep"></div>
         <div class="field"><label>Tamaño <b id="size-val">15 px</b></label><input type="range" id="size-range" min="0" max="1000"></div>
         <div class="field"><label>Opacidad <b id="opacity-val">100%</b></label><input type="range" id="opacity-range" min="5" max="100"></div>
-        <div class="field nopix"><label>Suavizado del trazo <b id="smooth-val">30%</b></label><input type="range" id="smooth-range" min="0" max="90"></div>
         <div class="field nopix"><label>Fuerza del difuminado 👆 <b id="smudge-val">60%</b></label><input type="range" id="smudge-range" min="10" max="100"></div>
         <label class="check nopix"><input type="checkbox" id="chk-pressure"> La presión del lápiz cambia el grosor</label>
         <label class="check"><input type="checkbox" id="chk-penonly"> Dibujar solo con lápiz (los dedos mueven el lienzo)</label>
@@ -734,7 +753,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false };
+  brushType:'brush', dyn:{}, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -946,17 +965,21 @@ function renderLayerPanel() {
   for (let i = layers.length - 1; i >= 0; i--) {
     const l = layers[i], clipped = !!clipBase(l);
     const row = document.createElement('div');
-    row.className = 'lrow' + (i === activeIndex ? ' active' : '') + (l.visible ? '' : ' off') + (clipped ? ' clipped' : '');
+    row.className = 'lrow' + (i === activeIndex ? ' active' : '') + (l.visible ? '' : ' off') + (clipped ? ' clipped' : '') + (l.locked ? ' locked' : '');
     const th = document.createElement('div'); th.className = 'lthumb'; th.appendChild(l.thumb);
     const info = document.createElement('div'); info.className = 'linfo';
     const nm = document.createElement('div'); nm.className = 'lname'; nm.textContent = l.name;
     const meta = document.createElement('div'); meta.className = 'lmeta';
-    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '');
+    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '') + (l.locked ? ' · 🔒 bloqueada' : '');
     info.append(nm, meta);
+    const lock = document.createElement('button'); lock.className = 'leye llock';
+    lock.textContent = l.locked ? '🔒' : '🔓'; lock.title = l.locked ? 'Desbloquear' : 'Bloquear (para no pintarla sin querer)';
+    lock.onclick = e => { e.stopPropagation(); l.locked = !l.locked; refreshLayers(); scheduleSave();
+      toast(l.locked ? `🔒 «${l.name}» bloqueada: no se puede pintar ni borrar` : `🔓 «${l.name}» desbloqueada`, 1800); };
     const eye = document.createElement('button'); eye.className = 'leye';
     eye.textContent = l.visible ? '👁️' : '🙈'; eye.title = l.visible ? 'Ocultar' : 'Mostrar';
     eye.onclick = e => { e.stopPropagation(); l.visible = !l.visible; refreshLayers(); scheduleSave(); };
-    row.append(th, info, eye);
+    row.append(th, info, lock, eye);
     row.onclick = () => { if (xform) commitTransform(); activeIndex = i; refreshLayers(); };
     list.appendChild(row);
   }
@@ -1039,6 +1062,11 @@ function groupEntry(list) {
     undo() { for (let i = list.length - 1; i >= 0; i--) list[i].undo(); },
     redo() { list.forEach(e => e.redo()); } };
 }
+// Capas bloqueadas: no se pueden pintar, borrar ni mover
+function isLocked(l) {
+  if (l && l.locked) { toast('🔒 La capa «' + l.name + '» está bloqueada. Desbloqueala en 📚 Capas', 2600); return true; }
+  return false;
+}
 function snapshot(layer) { const c = makeCanvas(); c.getContext('2d').drawImage(layer.canvas, 0, 0); return c; }
 function restoreSnapshot(layer, snap) {
   const ctx = layer.ctx; ctx.save(); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(snap, 0, 0); ctx.restore();
@@ -1110,6 +1138,7 @@ function actDuplicate() {
 function actMerge() {
   if (activeIndex === 0) return toast('No hay ninguna capa debajo para combinar');
   const up = layers[activeIndex], down = layers[activeIndex - 1], idx = activeIndex;
+  if (isLocked(down) || isLocked(up)) return;
   if (!up.visible || !down.visible) return toast('Mostrá las dos capas antes de combinarlas');
   if (up.anim || down.anim) return toast('Las capas animadas no se pueden combinar');
   const snap = snapshot(down);
@@ -1124,7 +1153,7 @@ function actMerge() {
     redo: doMerge });
 }
 function actClear() {
-  const l = layers[activeIndex];
+  const l = layers[activeIndex]; if (isLocked(l)) return;
   if (!ensureCell(l)) return;
   const snap = snapshot(l), rs = restorer(l), empty = makeCanvas();
   const doClear = () => rs(empty);
@@ -1134,6 +1163,7 @@ function actClear() {
 function actDelete() {
   if (layers.length <= 1) return toast('Tiene que quedar al menos una capa');
   const l = layers[activeIndex], idx = activeIndex;
+  if (isLocked(l)) return;
   removeLayer(l); refreshLayers();
   pushHistory(deleteEntry(l, idx)); scheduleSave();
 }
@@ -1280,7 +1310,7 @@ function cancelSelect() { selDraft = null; drawSelOutline(); mode = null; }
 
 function requireSel() { if (!selection) { toast('Primero seleccioná una zona'); return false; } return true; }
 function selFill() {
-  if (!requireSel()) return; const l = layers[activeIndex];
+  if (!requireSel()) return; const l = layers[activeIndex]; if (isLocked(l)) return;
   if (!l.visible) return toast('La capa activa está oculta');
   pushHistory(editRegion(l, selBox(), () => {
     l.ctx.save(); l.ctx.clip(selection.path, selection.rule);
@@ -1289,14 +1319,14 @@ function selFill() {
   pushRecent(settings.color);
 }
 function selClear() {
-  if (!requireSel()) return; const l = layers[activeIndex];
+  if (!requireSel()) return; const l = layers[activeIndex]; if (isLocked(l)) return;
   pushHistory(editRegion(l, selBox(), () => {
     l.ctx.save(); l.ctx.clip(selection.path, selection.rule); l.ctx.clearRect(0, 0, W, H); l.ctx.restore();
   }));
 }
 function selToLayer(cut) {
   if (!requireSel() || !canAddLayer()) return;
-  const src = layers[activeIndex];
+  const src = layers[activeIndex]; if (cut && isLocked(src)) return;
   const nl = createLayer(cut ? 'Recorte' : 'Copia');
   nl.ctx.save(); nl.ctx.clip(selection.path, selection.rule); nl.ctx.drawImage(visualCanvas(src), 0, 0); nl.ctx.restore();
   const parts = [];
@@ -1495,7 +1525,7 @@ floatCanvas.style.display = 'none'; wrapper.insertBefore(floatCanvas, selSvg);
 let xform = null;
 function startTransform() {
   if (!requireSel()) return;
-  const l = layers[activeIndex];
+  const l = layers[activeIndex]; if (isLocked(l)) return;
   if (!l.visible) return toast('La capa activa está oculta');
   if (!ensureCell(l)) return;
   const b = selBox();
@@ -1577,8 +1607,21 @@ function getSoftTip(color) {
   tipCache.set(color, c); return c;
 }
 
+/* ---------- Forma del trazo: puntas al empezar / terminar y afinado por velocidad ----------
+   Se guarda aparte para cada pincel (y para cada uno de «Mis pinceles"). */
+const DYN_DEF = { calligraphy: { start: 0.25, end: 0.35, speed: 0.3 } };
+const DYN_TOOLS = ['brush', 'calligraphy', 'airbrush', 'charcoal', 'custom', 'eraser'];
+const dynKey = t => t === 'custom' ? 'c:' + settings.customBrushId : t;
+function getDyn(t) { return Object.assign({ start: 0, end: 0, speed: 0 }, DYN_DEF[t], (settings.dyn || {})[dynKey(t)]); }
+function setDyn(t, d) { settings.dyn = { ...(settings.dyn || {}), [dynKey(t)]: d }; saveSettings(); }
+const taperF = t => t >= 1 ? 1 : 0.06 + 0.94 * Math.sin(Math.max(0, t) * Math.PI / 2);
+const taperLen = size => Math.max(40, size * 9);
+// Números al azar repetibles (para que el trazo no cambie al rehacerlo con la punta final)
+function seededRand(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function startStroke(e, p) {
   const layer = layers[activeIndex];
+  if (isLocked(layer)) { mode = 'tap'; return; }
   if (!layer.visible) { toast('La capa activa está oculta'); mode = 'tap'; return; }
   if (!ensureCell(layer)) { mode = 'tap'; return; }
   const tool = settings.tool, erasing = tool === 'eraser', smudging = tool === 'smudge';
@@ -1597,6 +1640,9 @@ function startStroke(e, p) {
     color: erasing ? '#000000' : settings.color, size: settings.size, opacity: settings.opacity, smooth: pixelMode ? 0 : settings.smoothing,
     strength: settings.smudge, usePressure: !pixelMode && settings.pressure && e.pointerType === 'pen',
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
+  stroke.dyn = (!pixelMode && DYN_TOOLS.includes(tool)) ? getDyn(tool) : null;
+  stroke.tlen = taperLen(settings.size); stroke.pts = []; stroke.len = 0; stroke.total = null;
+  stroke.seed = (Math.random() * 1e9) | 0; stroke.rng = seededRand(stroke.seed);
   // transición de colores a lo largo del trazo
   stroke.cmode = (erasing || smudging || tool === 'gradient') ? 'solid' : settings.colorMode;
   stroke.dist = 0; stroke.prevPt = null; stroke.transLen = settings.transLen;
@@ -1625,15 +1671,40 @@ function strokeMove(p, ev) {
   const s = stroke; if (!s) return;
   const c = toCanvas(p);
   const pr = s.usePressure ? Math.max(0.05, ev.pressure || 0) : 1;
-  const raw = { x: c.x, y: c.y, p: pr };
+  // velocidad del dedo (en pantalla): cuanto más rápido, más fina la línea
+  let vf = 1;
+  if (s.dyn && s.dyn.speed > 0) {
+    const t = ev.timeStamp || performance.now();
+    if (s.prevScr) { const dt = Math.max(4, t - s.prevT), v = Math.hypot(p.x - s.prevScr.x, p.y - s.prevScr.y) / dt;
+      s.vel = s.vel == null ? v : s.vel * 0.75 + v * 0.25; }
+    s.prevScr = { x: p.x, y: p.y }; s.prevT = t;
+    vf = 1 - s.dyn.speed * 0.85 * clamp(((s.vel || 0) - 0.2) / 2.2, 0, 1);
+  }
+  const raw = { x: c.x, y: c.y, p: pr, v: vf };
   s.lastRaw = raw;
   let pt;
-  if (!s.sp) pt = { ...raw };
-  else { const k = 1 - s.smooth, a = s.sp; pt = { x: a.x + (raw.x - a.x) * k, y: a.y + (raw.y - a.y) * k, p: a.p + (raw.p - a.p) * k }; }
-  s.sp = pt;
+  if (!s.sp) { pt = { ...raw }; s.anchor = raw; }
+  else {
+    // Estabilizador: «cuerda» (el pincel sigue al dedo a cierta distancia) + suavizado
+    const st = s.smooth, rope = st * st * 40 / viewScale(), a = s.anchor;
+    const dx = raw.x - a.x, dy = raw.y - a.y, dd = Math.hypot(dx, dy);
+    s.anchor = dd > rope ? { x: a.x + dx * (dd - rope) / dd, y: a.y + dy * (dd - rope) / dd, p: raw.p, v: raw.v } : { ...a, p: raw.p, v: raw.v };
+    const k = 1 - 0.85 * st, b = s.sp, n = s.anchor;
+    pt = { x: b.x + (n.x - b.x) * k, y: b.y + (n.y - b.y) * k, p: b.p + (n.p - b.p) * k, v: b.v + (n.v - b.v) * k };
+  }
+  pt.d = s.len += s.sp ? Math.hypot(pt.x - s.sp.x, pt.y - s.sp.y) : 0;
+  s.sp = pt; s.pts.push(pt);
   renderPoint(pt, false);
 }
-const pf = p => stroke.usePressure ? 0.2 + 0.8 * p : 1;
+// Grosor según presión, velocidad y puntas del trazo (recibe el punto)
+function pf(q) {
+  const s = stroke; let f = s.usePressure ? 0.2 + 0.8 * q.p : 1;
+  const D = s.dyn; if (!D) return f;
+  if (q.v != null) f *= q.v;
+  if (D.start > 0) f *= taperF(q.d / (s.tlen * D.start));
+  if (D.end > 0 && s.total != null) f *= taperF((s.total - q.d) / (s.tlen * D.end));
+  return f;
+}
 function grow(x, y, r) {
   const b = stroke.bbox; r += 3;
   if (x - r < b[0]) b[0] = x - r; if (y - r < b[1]) b[1] = y - r;
@@ -1666,7 +1737,7 @@ function renderPoint(pt, final) {
 }
 // Pincel redondo con curvas suaves (también lo usa el borrador)
 function roundBrush(pt, final) {
-  const s = stroke, ctx = sctx, w = Math.max(0.5, s.size * pf(pt.p));
+  const s = stroke, ctx = sctx, w = Math.max(0.5, s.size * pf(pt));
   ctx.strokeStyle = ctx.fillStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (!s.last) {
     ctx.beginPath(); ctx.arc(pt.x, pt.y, w / 2, 0, Math.PI * 2); ctx.fill();
@@ -1681,7 +1752,7 @@ function roundBrush(pt, final) {
 }
 // Caligrafía: plumilla a 45° rellenando el área barrida (trazo continuo)
 function calligraphy(pt) {
-  const s = stroke, ctx = sctx, w = s.size * pf(pt.p), k = w * 0.3536;
+  const s = stroke, ctx = sctx, w = Math.max(0.5, s.size * pf(pt)), k = w * 0.3536;
   ctx.fillStyle = ctx.strokeStyle = s.color; ctx.lineWidth = Math.max(1, s.size * 0.08);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath();
@@ -1697,19 +1768,21 @@ function calligraphy(pt) {
 // Recorre el camino dejando "sellos" a distancia fija
 function walkPath(pt, spacing, dab) {
   const s = stroke;
-  if (!s.last) { dab(pt.x, pt.y, pt.p); s.last = pt; s.rem = spacing; return; }
+  if (!s.last) { dab(pt.x, pt.y, pt); s.last = pt; s.rem = spacing; return; }
   const a = s.last, dx = pt.x - a.x, dy = pt.y - a.y, dist = Math.hypot(dx, dy);
   if (dist < 1e-6) return;
   let t = s.rem;
-  while (t <= dist) { const f = t / dist; dab(a.x + dx * f, a.y + dy * f, a.p + (pt.p - a.p) * f); t += spacing; }
+  const L = (u, v, f) => u == null ? v : u + (v - u) * f;
+  while (t <= dist) { const f = t / dist; dab(a.x + dx * f, a.y + dy * f, { p: a.p + (pt.p - a.p) * f, v: L(a.v, pt.v, f), d: L(a.d, pt.d, f) }); t += spacing; }
   s.rem = t - dist; s.last = pt;
 }
 // Aerógrafo: punta suave que se acumula de a poco
 function airbrush(pt) {
   const s = stroke, r = Math.max(1, s.size / 2), spacing = Math.max(0.75, r * 0.18);
-  walkPath(pt, spacing, (x, y, p) => {
-    sctx.globalAlpha = Math.min(1, 0.09 * (s.usePressure ? p * 1.6 : 1));
-    sctx.drawImage(s.tip, x - r, y - r, r * 2, r * 2);
+  walkPath(pt, spacing, (x, y, q) => {
+    const rr = s.dyn ? Math.max(0.5, r * pf({ ...q, p: 1 })) : r;
+    sctx.globalAlpha = Math.min(1, 0.09 * (s.usePressure ? q.p * 1.6 : 1));
+    sctx.drawImage(s.tip, x - rr, y - rr, rr * 2, rr * 2);
   });
   sctx.globalAlpha = 1; grow(pt.x, pt.y, r);
 }
@@ -1718,11 +1791,12 @@ function charcoal(pt) {
   const s = stroke, r = Math.max(1, s.size / 2), spacing = Math.max(1, r * 0.35);
   const grain = Math.max(1, s.size / 18), n = Math.round(clamp(r * 1.4, 6, 110));
   sctx.fillStyle = s.color;
-  walkPath(pt, spacing, (x, y, p) => {
-    const pr = s.usePressure ? p : 1;
+  const R = s.rng;
+  walkPath(pt, spacing, (x, y, q) => {
+    const pr = s.usePressure ? q.p : 1, rf = s.dyn ? pf({ ...q, p: 1 }) : 1;
     for (let i = 0; i < n; i++) {
-      const ang = Math.random() * 6.2832, rad = Math.sqrt(Math.random()) * r * (0.4 + 0.6 * pr);
-      sctx.globalAlpha = Math.random() * 0.45 * (0.3 + 0.7 * pr);
+      const ang = R() * 6.2832, rad = Math.sqrt(R()) * r * rf * (0.4 + 0.6 * pr);
+      sctx.globalAlpha = R() * 0.45 * (0.3 + 0.7 * pr);
       sctx.fillRect(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad, grain, grain);
     }
   });
@@ -1737,14 +1811,14 @@ function smudge(pt) {
     s.cctx.drawImage(s.layer.canvas, pt.x - r, pt.y - r, d, d, 0, 0, d, d);
     s.mask = getSoftTip('#ffffff');
   }
-  walkPath(pt, spacing, (x, y, p) => {
+  walkPath(pt, spacing, (x, y, q) => {
     const t = s.tctx;
     t.globalCompositeOperation = 'copy'; t.drawImage(s.carry, 0, 0);
     t.globalCompositeOperation = 'destination-in'; t.drawImage(s.mask, 0, 0, d, d);
     t.globalCompositeOperation = 'source-over';
     const L = s.layer.ctx; L.save();
     if (s.sel) L.clip(s.sel.path, s.sel.rule);
-    L.globalAlpha = s.strength * (s.usePressure ? p : 1); L.drawImage(s.tmp, x - r, y - r); L.restore();
+    L.globalAlpha = s.strength * (s.usePressure ? q.p : 1); L.drawImage(s.tmp, x - r, y - r); L.restore();
     s.cctx.globalAlpha = 0.3; s.cctx.drawImage(s.layer.canvas, x - r, y - r, d, d, 0, 0, d, d); s.cctx.globalAlpha = 1;
   });
   grow(pt.x, pt.y, r);
@@ -1765,13 +1839,14 @@ function customBrush(pt) {
   const tip = B.keep ? B.tip : tintedTip(B, s.color);
   const dir = s.last ? Math.atan2(pt.y - s.last.y, pt.x - s.last.x) : (s.dir || 0);
   s.dir = dir;
-  walkPath(pt, Math.max(1, s.size * B.spacing), (x, y, p) => stampBrush(sctx, B, tip, x, y, s.size * pf(p), dir));
+  walkPath(pt, Math.max(1, s.size * B.spacing), (x, y, q) => stampBrush(sctx, B, tip, x, y, s.size * pf(q), dir, s.rng));
   grow(pt.x, pt.y, s.size * (0.75 + B.scatter));
 }
-function stampBrush(ctx, B, tip, x, y, size, dir) {
-  const sz = size * (1 - B.sizeJitter * Math.random());
-  const ang = (B.follow ? dir : 0) + (Math.random() - 0.5) * B.rotJitter * Math.PI / 180;
-  const off = (Math.random() - 0.5) * 2 * B.scatter * size;
+function stampBrush(ctx, B, tip, x, y, size, dir, R = Math.random) {
+  if (size < 0.3) return;
+  const sz = size * (1 - B.sizeJitter * R());
+  const ang = (B.follow ? dir : 0) + (R() - 0.5) * B.rotJitter * Math.PI / 180;
+  const off = (R() - 0.5) * 2 * B.scatter * size;
   ctx.save(); ctx.translate(x - Math.sin(dir) * off, y + Math.cos(dir) * off); ctx.rotate(ang);
   ctx.drawImage(tip, -sz / 2, -sz / 2, sz, sz); ctx.restore();
 }
@@ -1797,7 +1872,13 @@ function eraseComposite() {
 }
 function endStroke() {
   const s = stroke; if (!s) return;
-  if (s.lastRaw) renderPoint(s.lastRaw, true);
+  if (s.lastRaw) {
+    const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
+    f.d = s.len + (s.sp ? Math.hypot(f.x - s.sp.x, f.y - s.sp.y) : 0);
+    s.pts.push(f);
+    if (s.dyn && s.dyn.end > 0 && s.pts.length > 1) replayStroke(s);   // rehace el trazo con la punta del final
+    else renderPoint(f, true);
+  }
   if (s.raf) cancelAnimationFrame(s.raf);
   const b = s.empty ? null : clampBox(s.bbox), ctx = s.layer.ctx;
   if (s.erasing) eraseComposite();
@@ -1815,6 +1896,13 @@ function endStroke() {
     pushHistory(pixelEntry(s.layer, b.x, b.y, before, after));
     layerChanged(s.layer);
   }
+}
+function replayStroke(s) {
+  s.total = s.pts[s.pts.length - 1].d;
+  sctx.clearRect(0, 0, W, H);
+  s.last = null; s.lastMid = null; s.rem = 0; s.dist = 0; s.prevPt = null; s.dir = undefined; s.rng = seededRand(s.seed);
+  if (s.tool === 'airbrush' && s.cmode !== 'solid') s.tip = getSoftTip(s.color);
+  s.pts.forEach((q, i) => renderPoint(q, i === s.pts.length - 1));
 }
 // Si entra un segundo dedo, el trazo que empezó se anula (era un gesto)
 function cancelStroke() {
@@ -1905,7 +1993,7 @@ function renderBrushList() {
     const cv = makeCanvas(150, 50); drawBrushPreview(cv, B, '#2a2a31');
     const sp = document.createElement('span'); sp.textContent = B.name;
     b.append(cv, sp);
-    b.onclick = () => { settings.customBrushId = B.id; saveSettings(); setTool('custom'); renderBrushList(); };
+    b.onclick = () => { settings.customBrushId = B.id; saveSettings(); setTool('custom'); renderBrushList(); updateDynUI(); };
     el.appendChild(b);
   });
   $('brush-edit').disabled = !cur || cur.builtin; $('brush-del').disabled = !cur || cur.builtin;
@@ -3359,6 +3447,7 @@ function floodMask(d, sx, sy, tol) {
 }
 function doFill(p) {
   const layer = layers[activeIndex];
+  if (isLocked(layer)) return;
   if (!layer.visible) return toast('La capa activa está oculta');
   const c = toCanvas(p), sx = Math.floor(c.x), sy = Math.floor(c.y);
   if (sx < 0 || sy < 0 || sx >= W || sy >= H) return;
@@ -3620,7 +3709,44 @@ function renderBrushTypes() {
     el.appendChild(b);
   });
   $('pix-opts').hidden = !pixelMode;
+  updateDynUI();
   $('custom-sec').hidden = pixelMode || settings.tool !== 'custom';
+}
+// Forma del trazo: muestra y edita las puntas del pincel elegido
+const DYN_PRESETS = [['Parejo', 0, 0, 0], ['Entintado', 0.3, 0.5, 0.4], ['Puntas finas', 0.7, 0.8, 0], ['Rápido = fino', 0, 0.15, 0.85]];
+function dynTool() { const t = settings.tool; return DYN_TOOLS.includes(t) ? t : null; }
+function stabLabel(v) { return v === 0 ? 'apagado' : v < 25 ? 'poco' : v < 55 ? 'medio' : v < 80 ? 'fuerte' : 'máximo'; }
+function updateDynUI() {
+  const t = dynTool(); $('dyn-sec').hidden = !t || pixelMode; if (!t || pixelMode) return;
+  const d = getDyn(t), B = t === 'custom' ? currentBrush() : null;
+  const names = { brush: 'Pincel', calligraphy: 'Pluma', airbrush: 'Aerógrafo', charcoal: 'Carbonilla', eraser: 'Borrador' };
+  $('dyn-for').textContent = '· ' + (B ? B.name : names[t] || '');
+  [['start', d.start], ['end', d.end], ['speed', d.speed]].forEach(([k, v]) => { $('dyn-' + k).value = Math.round(v * 100); $('dyn-' + k + '-val').textContent = Math.round(v * 100) + '%'; });
+  const box = $('dyn-presets'); box.textContent = '';
+  DYN_PRESETS.forEach(([n, a, b, c]) => {
+    const ch = document.createElement('button'); ch.className = 'chip' + (Math.abs(d.start - a) + Math.abs(d.end - b) + Math.abs(d.speed - c) < 0.01 ? ' on' : ''); ch.textContent = n;
+    ch.onclick = () => { setDyn(t, { start: a, end: b, speed: c }); updateDynUI(); }; box.appendChild(ch);
+  });
+  drawDynPreview(d);
+}
+// Dibujito de muestra: una curva que va lento → rápido → lento, con las puntas elegidas
+function drawDynPreview(d) {
+  const c = $('dyn-prev'), x = c.getContext('2d'), Wc = c.width, Hc = c.height;
+  x.clearRect(0, 0, Wc, Hc);
+  const N = 160, pts = [];
+  for (let i = 0; i <= N; i++) { const u = i / N; pts.push({ x: 30 + u * (Wc - 60), y: Hc / 2 + Math.sin(u * Math.PI * 2) * Hc * 0.24 }); }
+  let len = 0; pts.forEach((q, i) => { if (i) len += Math.hypot(q.x - pts[i - 1].x, q.y - pts[i - 1].y); q.d = len; });
+  const size = 22, L = taperLen(size) * 0.75;
+  x.fillStyle = settings.tool === 'eraser' ? '#555' : (settings.color || '#222');
+  for (let i = 1; i <= N; i++) {
+    const a = pts[i - 1], b = pts[i], u = i / N;
+    const speed = Math.sin(u * Math.PI);               // rápido en el medio
+    let f = 1 - d.speed * 0.85 * clamp((speed * 2.6 - 0.2) / 2.2, 0, 1);
+    if (d.start > 0) f *= taperF(b.d / (L * d.start));
+    if (d.end > 0) f *= taperF((len - b.d) / (L * d.end));
+    const r = Math.max(0.4, size * f / 2), steps = 3;
+    for (let k = 0; k < steps; k++) { const t = k / steps; x.beginPath(); x.arc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, r, 0, 6.2832); x.fill(); }
+  }
 }
 // Deslizadores verticales rápidos (tamaño y opacidad), al costado del dibujo
 let vsSizeSet = null, vsOpSet = null;
@@ -3799,6 +3925,7 @@ function showTab(name) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   ['color', 'mix', 'brush'].forEach(t => $('tab-' + t).hidden = t !== name);
   if (name === 'mix') updateMixUI();
+  if (name === 'brush') updateDynUI();
 }
 function togglePanel(name, tab) {
   const open = !panels[name].classList.contains('open') || (tab && settings.tab !== tab);
@@ -3820,6 +3947,9 @@ function showHelp() {
     <li><b>👾 Pixel art:</b> en 🏠 Mis proyectos → Pixel art. Lápiz de píxeles, cuadrícula, simetría y exportación agrandada.</li>
     <li><b>🎬 Cuadro a cuadro:</b> cada cuadro tiene su dibujo; <b>＋ Cuadro</b> agrega el siguiente y la <b>🧅 cebolla</b> muestra lo anterior en rojo y lo siguiente en verde.</li>
     <li><b>🦴 Huesos:</b> convertí un dibujo en objeto, armale huesos y movelo con <b>Posar</b>. Cada movimiento deja una clave 🔑.</li>
+    <li><b>🔊 Sonido:</b> en Animar, el botón Sonido carga un audio o graba con el micrófono; se ve en la línea de tiempo y sale en el video.</li>
+    <li><b>✍️ Forma del trazo</b> (tocá el pincel otra vez): puntas al empezar y al terminar, línea más fina si pasás rápido, y el <b>estabilizador</b> para líneas prolijas. Cada pincel —también los tuyos— recuerda su forma.</li>
+    <li><b>🔒 Capas:</b> en 📚 podés bloquear una capa para no pintarla sin querer.</li>
     <li><b>Línea de tiempo:</b> tocá un cuadro para ir ahí; arrastrá un dibujo o una clave para cambiarlo de lugar.</li>
     <li><b>⬚ Elegir:</b> seleccionás una zona para pintar solo adentro, moverla, copiarla o recortar el lienzo.</li>
     <li>Para compartir: <b>☰ → Exportar</b> imagen, video u hoja de sprites. En el APK queda en <b>Documentos › Tokers</b>.</li>
@@ -3915,7 +4045,7 @@ async function exportPNG() {
 async function projectFileData() {
   return { app: 'Tokers', version: 5, name: curProject ? curProject.name : 'Proyecto', kind: curProject ? curProject.kind : (pixelMode ? 'pixel' : 'draw'),
     w: W, h: H, pixel: pixelMode, active: activeIndex, scene: await sceneToData(true),
-    layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim,
+    layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked,
       png: l.anim ? null : l.canvas.toDataURL('image/png'),
       cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, png: c.toDataURL('image/png') })) : null })) };
 }
@@ -3923,7 +4053,7 @@ async function projectFileData() {
 async function recordToFileData(meta, rec, sc) {
   const layersOut = [];
   for (const d of rec.layers) {
-    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, png: null, cells: null };
+    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, locked: !!d.locked, png: null, cells: null };
     if (d.anim) { o.cells = []; for (const c of d.cells || []) if (c.blob) o.cells.push({ f: c.f, png: await blobToDataURL(c.blob) }); }
     else if (d.blob) o.png = await blobToDataURL(d.blob);
     else { const e = makeCanvas(rec.w, rec.h); o.png = e.toDataURL('image/png'); }
@@ -3970,7 +4100,7 @@ async function openProjectFile(file) {
         for (const c of d.cells || []) { const cv = newCellCanvas(); cv.getContext('2d').drawImage(await loadImageURL(c.png), 0, 0, W, H); l.cells.set(c.f, cv); cellDirty.add(cv); }
       } else if (d.png) l.ctx.drawImage(await loadImageURL(d.png), 0, 0, W, H);
       l.opacity = Number.isFinite(+d.opacity) ? clamp(+d.opacity, 0, 1) : 1;
-      l.visible = d.visible !== false; l.clip = !!d.clip; ls.push(l);
+      l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; ls.push(l);
     }
     replaceDocument(ls, data.active | 0, true);
     await loadSceneData(data.scene || null, true);
@@ -4073,7 +4203,7 @@ function saveNow(withThumb) {
         else if (l.dirty || !l.blob) { l.dirty = false; l.blob = await canvasToBlob(l.canvas); }
       }
       await idbPut('p:' + P.id, { version: 3, w: W, h: H, pixel: pixelMode, active: activeIndex, onion,
-        layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim,
+        layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked,
           blob: l.anim ? null : l.blob, cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, blob: cellBlob.get(c) })) : null })) });
       await idbPut('ps:' + P.id, await sceneToData(false));
       P.updated = Date.now(); P.w = W; P.h = H; P.changed = true;
@@ -4106,7 +4236,7 @@ async function loadProjectDoc(p) {
         l.anim = true; l.blank = l.canvas; l.cells = new Map();
         for (const c of d.cells || []) { if (!c.blob) continue; const cv = newCellCanvas(); cv.getContext('2d').drawImage(await blobToDrawable(c.blob), 0, 0); l.cells.set(c.f, cv); cellBlob.set(cv, c.blob); }
       } else if (d.blob) l.ctx.drawImage(await blobToDrawable(d.blob), 0, 0);
-      l.opacity = d.opacity ?? 1; l.visible = d.visible !== false; l.clip = !!d.clip;
+      l.opacity = d.opacity ?? 1; l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked;
       l.blob = d.blob; l.dirty = false; ls.push(l);
     }
     onion = !!rec.onion;
@@ -4195,6 +4325,13 @@ async function newProject(kind) {
   const titles = { draw: '🎨 Nuevo dibujo', pixel: '👾 Nuevo pixel art', anim: '🎬 Nueva animación' };
   const notes = { draw: 'Elegí un formato o escribí la medida que quieras (hasta 2048 px por lado).',
     anim: 'Para animar conviene una hoja no tan grande: se mueve más liviana. Hasta 2048 px por lado.' };
+  let how = null;
+  if (kind === 'anim') {
+    how = await dialog({ title: '🎬 ¿Cómo querés animar?', text: 'Después podés mezclar las dos formas en la misma animación, y agregarle sonido con 🔊.', ok: null, choices: [
+      { label: '✏️ Cuadro a cuadro', sub: 'dibujás cada cuadro, con papel cebolla', value: 'cells' },
+      { label: '🦴 Con huesos (rigging)', sub: 'dibujás el personaje y movés sus partes', value: 'bones' }] });
+    if (!how) return;
+  }
   const size = await askSize(titles[kind], def[0], def[1], 'Empezar', notes[kind] || '', false, kind === 'pixel');
   if (!size) return;
   let n = projects.filter(p => p.kind === kind).length + 1, name = `${KINDS[kind].name} ${n}`;
@@ -4206,9 +4343,16 @@ async function newProject(kind) {
   setDocSize(size[0], size[1]); setPixelMode(kind === 'pixel'); setDocSize(size[0], size[1]); resetScene();
   replaceDocument([createLayer('Fondo', true)], 0); fitView(); updateBars();
   hideHome();
-  if (kind === 'anim') {
+  if (kind === 'anim' && how === 'cells') {
     startCellAnimation();
     undoStack.length = 0; redoStack.length = 0; histBytes = 0; updateUndoButtons();
+  } else if (kind === 'anim') {
+    const l = createLayer('Personaje'); insertLayer(l, 1); activeIndex = 1; refreshLayers();
+    setAnimMode('anim'); setTool(settings.brushType || 'brush');
+    dialog({ title: '🦴 Animación con huesos', cancel: null, ok: 'Empezar a dibujar', html: `<ol style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+      <li>Dibujá el personaje en la capa «Personaje» (mejor cada parte —cabeza, brazos, piernas— en su propia capa).</li>
+      <li>Tocá <b>🦴 Huesos</b> abajo: elegí las capas y se convierte en un objeto.</li>
+      <li>Rodeá cada parte y tocá <b>Hacer hueso</b>. Después, con <b>Posar</b>, la movés y se guarda una clave 🔑 en la línea de tiempo.</li></ol>` });
   } else if (kind === 'pixel') toast('👾 Acercá con dos dedos para ver la cuadrícula. El lápiz pinta píxel por píxel.', 4000);
   else toast(`🎨 «${name}» se guarda solo. Volvés a tus proyectos con ☰ → 🏠`, 3500);
   scheduleSave(300);
@@ -4292,7 +4436,7 @@ function setupUI() {
   renderPalette();
   renderSwatches($('recent'), settings.recent);
   setTool(settings.tool); setColor(settings.color); setSize(settings.size);
-  $('smooth-range').value = Math.round(settings.smoothing * 100); $('smooth-val').textContent = Math.round(settings.smoothing * 100) + '%';
+  $('smooth-range').value = Math.round(settings.smoothing * 100); $('smooth-val').textContent = Math.round(settings.smoothing * 100) + '% · ' + stabLabel(Math.round(settings.smoothing * 100));
   $('smudge-range').value = Math.round(settings.smudge * 100); $('smudge-val').textContent = Math.round(settings.smudge * 100) + '%';
   $('tol-range').value = settings.tolerance; $('tol-val').textContent = settings.tolerance;
   $('chk-pressure').checked = settings.pressure; $('chk-penonly').checked = settings.penOnly; $('chk-sampleall').checked = settings.sampleAll;
@@ -4372,7 +4516,9 @@ function setupUI() {
 
   $('size-range').addEventListener('input', e => { setSize(sliderToSize(+e.target.value / 1000)); showSizeRing(); });
   $('opacity-range').addEventListener('input', e => setOpacity(+e.target.value / 100));
-  $('smooth-range').addEventListener('input', e => { settings.smoothing = +e.target.value / 100; $('smooth-val').textContent = e.target.value + '%'; saveSettings(); });
+  $('smooth-range').addEventListener('input', e => { settings.smoothing = +e.target.value / 100; $('smooth-val').textContent = e.target.value + '% · ' + stabLabel(+e.target.value); saveSettings(); });
+  ['start', 'end', 'speed'].forEach(k => $('dyn-' + k).addEventListener('input', e => {
+    const t = dynTool(); if (!t) return; setDyn(t, { ...getDyn(t), [k]: +e.target.value / 100 }); updateDynUI(); }));
   $('smudge-range').addEventListener('input', e => { settings.smudge = +e.target.value / 100; $('smudge-val').textContent = e.target.value + '%'; saveSettings(); });
   $('tol-range').addEventListener('input', e => { settings.tolerance = +e.target.value; $('tol-val').textContent = e.target.value; saveSettings(); });
   $('chk-pressure').onchange = e => { settings.pressure = e.target.checked; saveSettings(); };
