@@ -383,6 +383,26 @@ body.am-rig .anim-only,body.am-anim .rig-only{display:none!important}
   padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;z-index:90;pointer-events:none;max-width:90vw;text-align:center}
 body.has-bar #toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 #toast.show{opacity:1;transform:translate(-50%,0)}
+#blib{position:fixed;inset:0;z-index:90;background:#000b;display:flex;align-items:flex-end;justify-content:center}
+.blib-box{background:var(--panel);border:1px solid var(--line);border-radius:22px 22px 0 0;width:min(720px,100%);height:min(88%,900px);display:flex;flex-direction:column;
+  padding:14px 14px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -20px 60px #000}
+.blib-head{display:flex;align-items:center;justify-content:space-between;font-size:17px;padding:2px 4px 8px}
+.blib-head button{width:40px;height:40px;border-radius:12px;background:var(--panel2);font-size:18px}
+.blib-cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 0 8px;padding-bottom:2px}
+.blib-cats::-webkit-scrollbar{display:none}
+.blib-cats .chip{flex:none}
+.blib-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start;padding:2px}
+.blib-sec{grid-column:1/-1;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);margin:8px 2px 0}
+.blib-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:14px;background:var(--panel2);border:2px solid transparent;text-align:left}
+.blib-card canvas{width:100%;aspect-ratio:300/116;border-radius:9px;background:#f4f1ea;display:block}
+.blib-card span{font-size:12.5px;padding:0 3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blib-card.on{border-color:var(--accent);background:var(--accent-bg)}
+.blib-foot{margin:8px 4px 0}
+.blib-open{width:100%;display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:12px;border-radius:14px;text-align:left;
+  background:linear-gradient(120deg,#14301f,#1d2620);border:1px solid #2f5a3c}
+.blib-open .bo-ico{font-size:26px}.blib-open span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.blib-open small{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blib-open .bo-go{font-size:26px;color:var(--accent2)}
 #modal{position:fixed;inset:0;z-index:95;background:#000a;display:none;align-items:center;justify-content:center;padding:20px}
 #modal.open{display:flex}
 .mcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(400px,100%);max-height:90%;overflow-y:auto;box-shadow:0 20px 60px #000}
@@ -725,6 +745,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
           <p class="hint">Para borrar más suave todavía, bajá la <b>opacidad</b> (la barrita de abajo, al costado del dibujo): cada pasada borra un poco.</p>
           <div class="sep"></div>
         </div>
+        <button class="blib-open nopix" id="blib-open"><span class="bo-ico">📚</span><span><b>Biblioteca de pinceles</b><small id="blib-cur">44 pinceles: acuarela, óleo, lápiz, fuego, césped…</small></span><span class="bo-go">›</span></button>
         <div class="ptitle" id="btypes-title">Tipo de pincel</div>
         <div class="btypes" id="btypes"></div>
         <div id="pix-opts" hidden>
@@ -830,6 +851,14 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
 <input type="file" id="file-project" hidden>
 <input type="file" id="file-brush" accept="image/*" hidden>
 <div id="toast"></div>
+<div id="blib" hidden>
+  <div class="blib-box">
+    <div class="blib-head"><b>📚 Biblioteca de pinceles</b><button id="blib-close" title="Cerrar">✕</button></div>
+    <div class="chips blib-cats" id="blib-cats"></div>
+    <div class="blib-grid" id="blib-grid"></div>
+    <p class="hint blib-foot">Cada pincel recuerda su tamaño. La forma del trazo (puntas) se ajusta en 🖌️ Pincel › ✍️ Forma del trazo.</p>
+  </div>
+</div>
 <div id="modal"><div class="mcard" id="mcard"></div></div>
 
 <script>
@@ -2660,7 +2689,8 @@ function getSoftTip(color) {
 const DYN_DEF = { calligraphy: { start: 0.25, end: 0.35, speed: 0.3 } };
 const DYN_TOOLS = ['brush', 'calligraphy', 'airbrush', 'charcoal', 'custom', 'eraser'];
 const dynKey = t => t === 'custom' ? 'c:' + settings.customBrushId : t;
-function getDyn(t) { return Object.assign({ start: 0, end: 0, speed: 0 }, DYN_DEF[t], (settings.dyn || {})[dynKey(t)]); }
+function getDyn(t) { const B = t === 'custom' && typeof currentBrush === 'function' ? currentBrush() : null;
+  return Object.assign({ start: 0, end: 0, speed: 0 }, B && B.dyn ? B.dyn : DYN_DEF[t], (settings.dyn || {})[dynKey(t)]); }
 function setDyn(t, d) { settings.dyn = { ...(settings.dyn || {}), [dynKey(t)]: d }; saveSettings(); }
 const taperF = t => t >= 1 ? 1 : 0.06 + 0.94 * Math.sin(Math.max(0, t) * Math.PI / 2);
 const taperLen = size => Math.max(40, size * 9);
@@ -2697,7 +2727,8 @@ function startStroke(e, p) {
   stroke.dist = 0; stroke.prevPt = null; stroke.transLen = settings.transLen;
   if (stroke.cmode === 'blend') stroke.lut = Array.from({ length: 33 }, (_, i) => mixColors(settings.mixA, settings.mixB, i / 32, settings.mixMode));
   if (stroke.cmode === 'rainbow') { stroke.hsv0 = { ...hsv, s: Math.max(hsv.s, 0.65), v: Math.max(hsv.v, 0.7) }; }
-  if (tool === 'custom') { stroke.brush = currentBrush(); if (!stroke.brush) { cancelStroke(); return; } }
+  if (tool === 'custom') { stroke.brush = currentBrush(); if (!stroke.brush) { cancelStroke(); return; }
+    if (stroke.brush.lib && stroke.brush.def.op) { stroke.opacity *= stroke.brush.def.op; strokeCanvas.style.opacity = stroke.opacity * (parseFloat(layer.canvas.style.opacity) || 1); } }
   if (tool === 'gradient') {
     stroke.smooth = 0; stroke.g0 = toCanvas(p);
     stroke.stops = Array.from({ length: 24 }, (_, i) => mixColors(settings.mixA, settings.mixB, i / 23, settings.mixMode));
@@ -2861,8 +2892,7 @@ function calligraphy(pt) {
   s.last = pt; s.lastK = k; grow(pt.x, pt.y, w / 2 + s.size * 0.1);
 }
 // Recorre el camino dejando "sellos" a distancia fija
-function walkPath(pt, spacing, dab) {
-  const s = stroke;
+function walkPath(pt, spacing, dab, s = stroke) {
   if (!s.last) { dab(pt.x, pt.y, pt); s.last = pt; s.rem = spacing; return; }
   const a = s.last, dx = pt.x - a.x, dy = pt.y - a.y, dist = Math.hypot(dx, dy);
   if (dist < 1e-6) return;
@@ -2947,6 +2977,11 @@ function paintGradient(s, pt) {
 // Pincel personalizado: estampa la imagen del pincel a lo largo del trazo
 function customBrush(pt) {
   const s = stroke, B = s.brush;
+  if (B.lib) {
+    const gb = libSegment(s, sctx, B, pt, q => s.size * pf(q));
+    if (gb[0] < Infinity) { grow(gb[0], gb[1], 0); grow(gb[2], gb[3], 0); }
+    return;
+  }
   const tip = B.keep ? B.tip : tintedTip(B, s.color);
   const dir = s.last ? Math.atan2(pt.y - s.last.y, pt.x - s.last.x) : (s.dir || 0);
   s.dir = dir;
@@ -2995,6 +3030,16 @@ function endStroke() {
     else if (s.dyn && (s.dyn.end > 0 || s.dyn.start > 0) && s.pts.length > 1) replayStroke(s);   // rehace el trazo con las puntas según su largo real
     else renderPoint(f, true);
   }
+  if (s.brush && s.brush.lib && !s.brush.def.m && s.pts.length && s.len * viewScale() < 4 && (s.brush.def.fl ?? 1) < 0.3) {
+    // un toque con un pincel muy suave (aerógrafo, acuarela…): se repite el sello para que se vea
+    const d = s.brush.def, n = Math.min(30, Math.ceil(Math.log(0.55) / Math.log(1 - (d.fl || 0.05)))), q = s.pts[0], gb = [Infinity, Infinity, -Infinity, -Infinity];
+    for (let k = 0; k < n; k++) libDab(s, sctx, s.brush, q.x, q.y, s.size, 0, s.rng, gb);
+    if (gb[0] < Infinity) { grow(gb[0], gb[1], 0); grow(gb[2], gb[3], 0); }
+  }
+  else if (!s.br && s.brush && s.brush.lib && s.brush.def.m === 'bristle' && s.pts.length) {   // un toque con cerdas: deja una pincelada redonda
+    const q = s.pts[0], r = Math.max(0.5, s.size * 0.45); sctx.fillStyle = s.color; sctx.globalAlpha = s.brush.def.fl ?? 1;
+    sctx.beginPath(); sctx.arc(q.x, q.y, r, 0, 6.2832); sctx.fill(); sctx.globalAlpha = 1; grow(q.x, q.y, r);
+  }
   if (s.raf) cancelAnimationFrame(s.raf);
   const sym = symStroke(s), b = s.empty ? null : (sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox)), ctx = s.layer.ctx;
   if (s.erasing) eraseComposite();
@@ -3017,7 +3062,7 @@ function endStroke() {
 function replayStroke(s) {
   s.total = s.pts[s.pts.length - 1].d;
   sctx.clearRect(0, 0, W, H);
-  s.last = null; s.lastMid = null; s.rem = 0; s.dist = 0; s.prevPt = null; s.dir = undefined; s.cr = null; s.rng = seededRand(s.seed);
+  s.last = null; s.lastMid = null; s.rem = 0; s.dist = 0; s.prevPt = null; s.dir = undefined; s.cr = null; s.br = null; s.rng = seededRand(s.seed);
   if (s.tool === 'airbrush' && s.cmode !== 'solid') s.tip = getSoftTip(s.color);
   s.pts.forEach((q, i) => renderPoint(q, i === s.pts.length - 1));
 }
@@ -3077,7 +3122,7 @@ function tintedTip(B, color) {
 }
 function currentBrush() { return brushes.find(b => b.id === settings.customBrushId) || brushes[0]; }
 async function loadBrushes() {
-  brushes = builtinBrushes();
+  brushes = [...libBrushes(), ...builtinBrushes()];
   try {
     const saved = await idbGet('brushes');
     if (Array.isArray(saved)) for (const r of saved) {
@@ -3108,7 +3153,7 @@ function drawBrushPreview(canvas, B, color) {
 function renderBrushList() {
   const el = $('brush-list'); el.textContent = '';
   const cur = currentBrush();
-  brushes.forEach(B => {
+  brushes.filter(B => !B.lib).forEach(B => {
     const b = document.createElement('button'); b.className = 'bitem' + (B === cur ? ' on' : '');
     const cv = makeCanvas(150, 50); drawBrushPreview(cv, B, '#2a2a31');
     const sp = document.createElement('span'); sp.textContent = B.name;
@@ -3214,6 +3259,350 @@ async function deleteBrush() {
   if (!ok) return;
   brushes = brushes.filter(b => b !== B); settings.customBrushId = brushes[0].id; saveSettings();
   saveBrushes(); renderBrushList(); toast('Pincel borrado');
+}
+
+
+/* =====================================================================
+   BIBLIOTECA DE PINCELES
+   Cada pincel se arma con código (sin imágenes): puntas generadas, cerdas,
+   textura de papel, variación de color, sombras y brillos propios.
+   ===================================================================== */
+const LT = 192;
+const LIB_CATS = [['basic', '✏️ Básicos'], ['paint', '🎨 Pintura'], ['light', '💡 Luz y sombra'], ['tex', '🧱 Texturas'], ['fx', '✨ Efectos'], ['nature', '🌿 Naturaleza']];
+function lcv() { const c = makeCanvas(LT, LT), x = c.getContext('2d'); x.fillStyle = x.strokeStyle = '#fff'; x.lineCap = 'round'; x.lineJoin = 'round'; return [c, x]; }
+// ---- formas de punta ----
+function tSoft(hard = 0) { const [c, x] = lcv(), h = LT / 2, g = x.createRadialGradient(h, h, 0, h, h, h);
+  g.addColorStop(0, '#fff'); if (hard > 0) g.addColorStop(hard, '#fff'); g.addColorStop(Math.min(1, hard + (1 - hard) * 0.55), 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, LT, LT); return { m: c }; }
+function tDisc(r = 0.94) { const [c, x] = lcv(), h = LT / 2; x.beginPath(); x.arc(h, h, h * r, 0, 6.2832); x.fill(); return { m: c }; }
+function tDots(R, n, maxR, pow = 1, aMin = 0.4, soft = false) { const [c, x] = lcv(), h = LT / 2;
+  for (let i = 0; i < n; i++) { const a = R() * 6.2832, d = Math.pow(R(), pow) * h * 0.92, r = 0.6 + R() * maxR;
+    x.globalAlpha = (aMin + (1 - aMin) * R()) * (soft ? Math.max(0, 1 - d / h) : 1); x.beginPath(); x.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, r, 0, 6.2832); x.fill(); }
+  return { m: c }; }
+function blobPath(x, R, cx, cy, rad, irr, n = 18) {
+  const pts = []; for (let i = 0; i < n; i++) { const a = i / n * 6.2832, r = rad * (1 - irr / 2 + irr * R()); pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  x.beginPath(); for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2; i ? x.quadraticCurveTo(p[0], p[1], mx, my) : x.moveTo(mx, my); }
+  const p = pts[0], q = pts[1]; x.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); x.closePath();
+}
+function tWater(R) { const [c, x] = lcv(), h = LT / 2; x.filter = 'blur(9px)';
+  blobPath(x, R, h, h, h * 0.66, 0.45, 16); x.globalAlpha = 0.9; x.fill();
+  return { m: c }; }
+function tSplash(R, wet) { const [c, x] = lcv(), h = LT / 2; if (wet) x.filter = 'blur(1px)';
+  blobPath(x, R, h, h, h * 0.42, 0.6, 16); x.globalAlpha = wet ? 0.6 : 1; x.fill(); if (wet) { x.globalAlpha = 0.85; x.lineWidth = 3; x.stroke(); }
+  for (let i = 0; i < 26; i++) { const a = R() * 6.2832, d = h * (0.45 + 0.5 * Math.pow(R(), 0.7)), r = (1 - d / h) * 14 * R() + 1.5;
+    x.globalAlpha = wet ? 0.5 + R() * 0.3 : 1; x.beginPath(); x.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, r, 0, 6.2832); x.fill(); }
+  for (let i = 0; i < 5; i++) { const a = R() * 6.2832, d0 = h * 0.35, d1 = h * (0.6 + R() * 0.3); x.lineWidth = 3 + R() * 5; x.globalAlpha = wet ? 0.6 : 1;
+    x.beginPath(); x.moveTo(h + Math.cos(a) * d0, h + Math.sin(a) * d0); x.lineTo(h + Math.cos(a) * d1, h + Math.sin(a) * d1); x.stroke(); }
+  return { m: c }; }
+function starPath(x, cx, cy, ro, ri, n = 5, rot = -Math.PI / 2) { x.beginPath(); for (let i = 0; i < n * 2; i++) { const r = i % 2 ? ri : ro, a = rot + i * Math.PI / n; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); }
+function tStar() { const [c, x] = lcv(), h = LT / 2; starPath(x, h, h * 1.05, h * 0.95, h * 0.4); x.fill(); return { m: c }; }
+function tSparkle() { const [c, x] = lcv(), [hc, hx] = lcv(), h = LT / 2;
+  const sp = (X, r, w) => { X.beginPath(); X.moveTo(h, h - r); X.quadraticCurveTo(h + w, h - w, h + r, h); X.quadraticCurveTo(h + w, h + w, h, h + r); X.quadraticCurveTo(h - w, h + w, h - r, h); X.quadraticCurveTo(h - w, h - w, h, h - r); X.fill(); };
+  sp(x, h * 0.95, h * 0.1); const g = x.createRadialGradient(h, h, 0, h, h, h * 0.4); g.addColorStop(0, 'rgba(255,255,255,.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, LT, LT);
+  hx.globalAlpha = 0.9; sp(hx, h * 0.55, h * 0.05); return { m: c, hi: hc }; }
+function leafPath(x, len, wid) { x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(len * 0.45, -wid, len, 0); x.quadraticCurveTo(len * 0.45, wid, 0, 0); x.closePath(); }
+function tLeaf(R) { const [c, x] = lcv(), [hc, hx] = lcv(), [lc, lx] = lcv(), h = LT / 2, wid = h * (0.5 + R() * 0.25), len = LT * 0.9;
+  for (const X of [x, hx, lx]) { X.translate(LT * 0.05, h); X.rotate((R() - 0.5) * 0.2); }
+  leafPath(x, len, wid); x.fill();
+  lx.globalAlpha = 0.28; leafPath(lx, len, wid); lx.save(); lx.clip(); lx.fillRect(0, 0, len, wid); lx.restore();
+  hx.globalAlpha = 0.55; hx.lineWidth = 3; hx.beginPath(); hx.moveTo(len * 0.04, 0); hx.quadraticCurveTo(len * 0.5, -wid * 0.08, len * 0.92, 0); hx.stroke();
+  hx.lineWidth = 1.6; for (let i = 1; i < 6; i++) { const t = i / 6.5; hx.beginPath(); hx.moveTo(len * t, 0); hx.lineTo(len * (t + 0.1), -wid * 0.45); hx.moveTo(len * t, 0); hx.lineTo(len * (t + 0.1), wid * 0.45); hx.stroke(); }
+  return { m: c, hi: hc, lo: lc }; }
+function tCloud(R) { const [c, x] = lcv(), [hc, hx] = lcv(), [lc, lx] = lcv(), h = LT / 2, cs = [];
+  for (let i = 0; i < 7; i++) { const t = i / 6; cs.push([LT * (0.18 + 0.64 * t), h + LT * 0.12 - Math.sin(t * Math.PI) * LT * (0.12 + R() * 0.12), LT * (0.13 + R() * 0.1 + Math.sin(t * Math.PI) * 0.06)]); }
+  x.filter = 'blur(2px)'; cs.forEach(([a, b, r]) => { x.beginPath(); x.arc(a, b, r, 0, 6.2832); x.fill(); }); x.fillRect(LT * 0.18, h + LT * 0.04, LT * 0.64, LT * 0.12);
+  hx.filter = 'blur(6px)'; hx.globalAlpha = 0.7; cs.forEach(([a, b, r]) => { hx.beginPath(); hx.arc(a - r * 0.25, b - r * 0.3, r * 0.6, 0, 6.2832); hx.fill(); });
+  const g = lx.createLinearGradient(0, h - LT * 0.05, 0, h + LT * 0.2); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.35)'); lx.fillStyle = g; lx.fillRect(0, 0, LT, LT);
+  return { m: c, hi: hc, lo: lc }; }
+function tGrass(R) { const [c, x] = lcv(), [hc, hx] = lcv(), [lc, lx] = lcv(), n = 9 + (R() * 6 | 0);
+  const blade = (X, bx, w, tx, ty, cx) => { X.beginPath(); X.moveTo(bx - w, LT); X.quadraticCurveTo(cx, (ty + LT) / 2, tx, ty); X.quadraticCurveTo(cx + w * 0.4, (ty + LT) / 2, bx + w, LT); X.closePath(); X.fill(); };
+  for (let i = 0; i < n; i++) { const bx = LT * (0.25 + 0.5 * R()), lean = (R() - 0.5) * LT * 0.7, ty = LT * (0.05 + R() * 0.45), w = 2.5 + R() * 4, tx = bx + lean, cx = bx + lean * 0.25;
+    blade(x, bx, w, tx, ty, cx); if (R() < 0.45) { hx.globalAlpha = 0.25 + R() * 0.25; blade(hx, bx, w * 0.5, tx, ty, cx); } }
+  const g = lx.createLinearGradient(0, LT * 0.55, 0, LT); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); lx.fillStyle = g; lx.fillRect(0, 0, LT, LT);
+  return { m: c, hi: hc, lo: lc }; }
+function tFlame(R) { const [c, x] = lcv(), [hc, hx] = lcv(), h = LT / 2;
+  const fl = (X, s, wig) => { const top = LT * (0.04 + (1 - s) * 0.5), bw = h * 0.6 * s; X.beginPath(); X.moveTo(h + wig, top);
+    X.bezierCurveTo(h + bw * 0.9 + wig * 0.3, LT * 0.45, h + bw * 1.1, LT * 0.75, h, LT * 0.95); X.bezierCurveTo(h - bw * 1.1, LT * 0.75, h - bw * 0.7, LT * 0.5, h + wig, top); X.fill(); };
+  const wig = (R() - 0.5) * LT * 0.3; x.filter = 'blur(1px)'; fl(x, 1, wig);
+  if (R() < 0.7) { x.globalAlpha = 0.8; for (let i = 0; i < 4; i++) { x.beginPath(); x.arc(h + (R() - 0.5) * LT * 0.8, LT * R() * 0.4, 1.5 + R() * 3, 0, 6.2832); x.fill(); } }
+  hx.filter = 'blur(9px)'; hx.globalAlpha = 0.4; fl(hx, 0.5, wig * 0.4); return { m: c, hi: hc }; }
+function tCurl(R) { const [c, x] = lcv(), [hc, hx] = lcv(), h = LT / 2, dir = R() < 0.5 ? 1 : -1;
+  for (let i = 0; i < 60; i++) { const t = i / 59, a = dir * (t * 4.2), r = h * (0.85 - t * 0.6), w = 3 + (1 - t) * 18;
+    x.beginPath(); x.arc(h + Math.cos(a) * r, h + Math.sin(a) * r, w, 0, 6.2832); x.fill();
+    if (i % 2 === 0) { hx.globalAlpha = 0.6; hx.beginPath(); hx.arc(h + Math.cos(a) * (r - w * 0.4), h + Math.sin(a) * (r - w * 0.4), w * 0.3, 0, 6.2832); hx.fill(); } }
+  for (let i = 0; i < 9; i++) { const a = R() * 6.2832, d = h * (0.7 + R() * 0.25), r = 2 + R() * 5; x.beginPath(); x.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, r, 0, 6.2832); x.fill(); }
+  return { m: c, hi: hc }; }
+function tSmoke(R) { const [c, x] = lcv(), h = LT / 2; x.filter = 'blur(7px)';
+  for (let k = 0; k < 2; k++) { x.globalAlpha = 0.55 + R() * 0.3; x.lineWidth = 14 + R() * 18; x.beginPath(); x.moveTo(LT * 0.1, h + (R() - 0.5) * 40);
+    x.bezierCurveTo(LT * 0.35, h + (R() - 0.5) * 140, LT * 0.65, h + (R() - 0.5) * 140, LT * 0.9, h + (R() - 0.5) * 40); x.stroke(); }
+  return { m: c }; }
+function tFog(R) { const [c, x] = lcv(), h = LT / 2; x.filter = 'blur(10px)';
+  for (let i = 0; i < 22; i++) { const a = R() * 6.2832, d = Math.sqrt(R()) * h * 0.55; x.globalAlpha = 0.12 + R() * 0.2; x.beginPath(); x.arc(h + Math.cos(a) * d, h + Math.sin(a) * d, 12 + R() * 26, 0, 6.2832); x.fill(); }
+  return { m: c }; }
+function tCrack(R) { const [c, x] = lcv(), h = LT / 2;
+  const br = (px, py, a, len, w, depth) => { let X = px, Y = py; x.lineWidth = w; x.beginPath(); x.moveTo(X, Y);
+    const steps = 6; for (let i = 0; i < steps; i++) { a += (R() - 0.5) * 0.9; X += Math.cos(a) * len / steps; Y += Math.sin(a) * len / steps; x.lineTo(X, Y);
+      if (depth < 2 && R() < 0.35) { x.stroke(); br(X, Y, a + (R() < 0.5 ? 1 : -1) * (0.5 + R() * 0.7), len * 0.45, Math.max(0.8, w * 0.55), depth + 1); x.lineWidth = w; x.beginPath(); x.moveTo(X, Y); } }
+    x.stroke(); };
+  const n = 3 + (R() * 3 | 0); for (let i = 0; i < n; i++) br(h, h, i / n * 6.2832 + R(), h * (0.6 + R() * 0.35), 3.5, 0);
+  for (let i = 0; i < 14; i++) { x.beginPath(); x.arc(h + (R() - 0.5) * LT * 0.8, h + (R() - 0.5) * LT * 0.8, 0.8 + R() * 2, 0, 6.2832); x.fill(); }
+  return { m: c }; }
+function tRust(R) { const [c, x] = lcv(), [hc, hx] = lcv(), [lc, lx] = lcv(), h = LT / 2;
+  blobPath(x, R, h, h, h * 0.62, 0.5, 14); x.fill();
+  for (let i = 0; i < 900; i++) { const a = R() * 6.2832, d = h * (0.55 + Math.pow(R(), 2) * 0.4), s = 1 + R() * 4; x.globalAlpha = R() * 0.8; x.fillRect(h + Math.cos(a) * d, h + Math.sin(a) * d, s, s); }
+  lx.filter = 'blur(2px)'; for (let i = 0; i < 9; i++) { lx.globalAlpha = 0.3 + R() * 0.35; blobPath(lx, R, h + (R() - 0.5) * h, h + (R() - 0.5) * h, 8 + R() * 22, 0.6, 9); lx.fill(); }
+  for (let i = 0; i < 160; i++) { hx.globalAlpha = R() * 0.5; hx.fillRect(R() * LT, R() * LT, 2, 2); }
+  return { m: c, hi: hc, lo: lc }; }
+function tBranch(R) { const [c, x] = lcv(), [hc, hx] = lcv(), [lc, lx] = lcv();
+  const P = t => [LT * (0.08 + 0.84 * t), LT * (0.85 - 0.7 * t) + Math.sin(t * 3) * 10];
+  x.lineWidth = 4; x.beginPath(); for (let i = 0; i <= 20; i++) { const [a, b] = P(i / 20); i ? x.lineTo(a, b) : x.moveTo(a, b); } x.stroke();
+  for (let i = 0; i < 9; i++) { const t = 0.1 + i / 9 * 0.9, [a, b] = P(t), side = i % 2 ? 1 : -1, len = LT * (0.2 + 0.12 * R()) * (1 - t * 0.35), wid = len * (0.3 + R() * 0.12), ang = -0.75 + side * (0.9 + R() * 0.4);
+    for (const [X, k] of [[x, 0], [lx, 1], [hx, 2]]) { X.save(); X.translate(a, b); X.rotate(ang); leafPath(X, len, wid);
+      if (k === 0) X.fill(); else if (k === 1) { X.globalAlpha = 0.3; X.clip(); X.fillRect(0, 0, len, wid); } else { X.globalAlpha = 0.5; X.lineWidth = 1.5; X.beginPath(); X.moveTo(2, 0); X.lineTo(len * 0.9, 0); X.stroke(); } X.restore(); } }
+  return { m: c, hi: hc, lo: lc }; }
+function tBush(R) { const [c, x] = lcv(), [lc, lx] = lcv(), h = LT / 2, n = 34; x.beginPath();
+  for (let i = 0; i <= n; i++) { const a = i / n * 6.2832, r = h * (0.62 + R() * 0.3), r2 = h * (0.45 + R() * 0.2), a2 = a + Math.PI / n;
+    i ? x.lineTo(h + Math.cos(a) * r, h + Math.sin(a) * r * 0.85) : x.moveTo(h + Math.cos(a) * r, h + Math.sin(a) * r * 0.85); x.lineTo(h + Math.cos(a2) * r2, h + Math.sin(a2) * r2 * 0.85); }
+  x.closePath(); x.fill();
+  for (let i = 0; i < 10; i++) { x.save(); x.translate(h + (R() - 0.5) * h * 1.3, h + (R() - 0.5) * h * 1.1); x.rotate(R() * 6.28); leafPath(x, 22 + R() * 18, 7 + R() * 4); x.fill(); x.restore(); }
+  const g = lx.createLinearGradient(0, h * 0.7, 0, LT); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.3)'); lx.fillStyle = g; lx.fillRect(0, 0, LT, LT);
+  return { m: c, lo: lc }; }
+function tChisel() { const [c, x] = lcv(), w = LT * 0.92, hh = LT * 0.34; x.beginPath(); x.roundRect ? x.roundRect((LT - w) / 2, (LT - hh) / 2, w, hh, 10) : x.rect((LT - w) / 2, (LT - hh) / 2, w, hh); x.fill(); return { m: c }; }
+// ---- texturas del papel (alineadas a la hoja, para que el grano no "camine" con el trazo) ----
+const grainCache = new Map();
+function grainTile(kind) {
+  if (grainCache.has(kind)) return grainCache.get(kind);
+  const T = 128, c = makeCanvas(T, T), x = c.getContext('2d', { willReadFrequently: true }), R = seeded(kind.length * 977 + 13);
+  const noise = (cells, cellsY = cells) => { const lo = makeCanvas(cells, cellsY), lx = lo.getContext('2d'), d = lx.createImageData(cells, cellsY);
+    for (let i = 0; i < d.data.length; i += 4) { const v = R() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } lx.putImageData(d, 0, 0);
+    const big = makeCanvas(T * 3, T * 3), bx = big.getContext('2d'); bx.imageSmoothingEnabled = true;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) bx.drawImage(lo, i * T, j * T, T, T);
+    return [big, T]; };
+  const layer = (cells, a, cy) => { const [big] = noise(cells, cy); x.globalAlpha = a; x.drawImage(big, T, T, T, T, 0, 0, T, T); };
+  x.fillStyle = '#000'; x.fillRect(0, 0, T, T);
+  let dens = 0.5, fn = null;
+  if (kind === 'fine') { layer(64, 1); layer(128, 0.6); dens = 0.55; }
+  else if (kind === 'rough') { layer(20, 1); layer(64, 0.7); layer(128, 0.5); dens = 0.5; }
+  else if (kind === 'paper') { layer(12, 1); layer(40, 0.8); layer(128, 0.4); dens = 0.5; }
+  else if (kind === 'crayon') { layer(28, 1, 64); layer(96, 0.8); layer(128, 0.5); dens = 0.6; }
+  else if (kind === 'stipple') fn = (X, Y) => R() < 0.36 ? 1 : 0;
+  else if (kind === 'hatch') fn = (X, Y) => { const v = ((X + Y) % 8 + 8) % 8; return clamp(1.6 - Math.abs(v - 2), 0, 1); };
+  else if (kind === 'shatch') { const r = []; for (let i = 0; i < T * T; i++) r.push(R()); fn = (X, Y) => { const v = ((X - Y) % 6 + 6) % 6; return clamp(1.4 - Math.abs(v - 2), 0, 1) * (r[Y * T + X] < 0.82 ? 1 : 0); }; }
+  else if (kind === 'dots') fn = (X, Y) => { const p = 8, d1 = Math.hypot(((X % p) + p) % p - p / 2, ((Y % p) + p) % p - p / 2), d2 = Math.hypot(((X + p / 2) % p) - p / 2, ((Y + p / 2) % p) - p / 2); return clamp(2.6 - Math.min(d1, d2) + 0.5, 0, 1); };
+  const d = x.getImageData(0, 0, T, T), p = d.data;
+  if (fn) { for (let Y = 0; Y < T; Y++) for (let X = 0; X < T; X++) { const i = (Y * T + X) * 4; p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = 255 * fn(X, Y); } }
+  else {   // se queda con la parte más clara del ruido (dens = cuánto papel se pinta)
+    const hist = new Array(256).fill(0); for (let i = 0; i < p.length; i += 4) hist[p[i]]++;
+    let acc = 0, th = 255; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= T * T * dens) { th = v; break; } }
+    for (let i = 0; i < p.length; i += 4) { const a = clamp((p[i] - th) * 40 + 128, 0, 255); p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = a; }
+  }
+  x.putImageData(d, 0, 0);
+  const pat = x.createPattern(c, 'repeat'); grainCache.set(kind, pat); return pat;
+}
+// ---- la lista de pinceles ----
+// m: modo (stamp = sellos · bristle = cerdas · pixel = cuadraditos) · sp: separación · fl: carga de pintura por sello
+const LIB_DEFS = [
+  { id: 'l-suave', n: 'Pincel suave', cat: 'basic', ico: '☁️', tip: () => tSoft(0), sp: 0.1, fl: 0.13, sz: 60 },
+  { id: 'l-duro', n: 'Pincel duro', cat: 'basic', ico: '⚫', tip: () => tDisc(), sp: 0.05, fl: 1, sz: 24, dyn: { start: 0.15, end: 0.2, speed: 0 } },
+  { id: 'l-lapiz', n: 'Lápiz', cat: 'basic', ico: '✏️', tip: () => tSoft(0.55), sp: 0.08, fl: 0.6, sz: 6, grain: 'fine', dyn: { start: 0.2, end: 0.3, speed: 0.2 } },
+  { id: 'l-carbon', n: 'Carboncillo', cat: 'basic', ico: '🪨', tips: R => tDots(R, 900, 3, 0.7, 0.3), v: 3, sp: 0.12, fl: 0.7, rj: 180, sj: 0.15, sz: 26, grain: 'rough' },
+  { id: 'l-tinta', n: 'Tinta', cat: 'basic', ico: '🖋️', tip: () => tDisc(), sp: 0.05, fl: 1, sz: 14, spat: { p: 0.025, n: 6, d: 1.8 }, dyn: { start: 0.25, end: 0.45, speed: 0.35 } },
+  { id: 'l-pluma', n: 'Pluma (lineart)', cat: 'basic', ico: '✒️', tip: () => tDisc(), sp: 0.04, fl: 1, sz: 6, dyn: { start: 0.65, end: 0.8, speed: 0.4 } },
+  { id: 'l-marcador', n: 'Marcador', cat: 'basic', ico: '🖍️', tip: () => tChisel(), sp: 0.06, fl: 1, rot: -0.7, sz: 34, op: 0.72 },
+  { id: 'l-aero', n: 'Aerógrafo', cat: 'basic', ico: '💨', tips: R => { const s = tSoft(0); const x = s.m.getContext('2d'); x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 500; i++) { x.globalAlpha = R() * 0.4; x.fillRect(R() * LT, R() * LT, 2, 2); } return s; }, sp: 0.1, fl: 0.06, sz: 90 },
+  { id: 'l-acuarela', n: 'Acuarela', cat: 'paint', ico: '💧', tips: R => tWater(R), v: 5, sp: 0.05, fl: 0.035, rj: 180, sj: 0.25, sc: 0.06, hj: 0.02, lj: 0.06, sz: 70 },
+  { id: 'l-gouache', n: 'Gouache', cat: 'paint', ico: '🖌️', m: 'bristle', bn: 10, bw: 0.95, bwid: 0.27, fl: 0.92, lj: 0.03, sz: 40 },
+  { id: 'l-oleo', n: 'Óleo', cat: 'paint', ico: '🎨', m: 'bristle', bn: 16, bw: 1, bwid: 0.14, fl: 0.95, lj: 0.13, hj: 0.015, sz: 46 },
+  { id: 'l-pastel', n: 'Pastel', cat: 'paint', ico: '🖍️', tip: () => tSoft(0.4), sp: 0.1, fl: 0.75, sj: 0.1, hj: 0.015, grain: 'rough', sz: 40 },
+  { id: 'l-crayon', n: 'Crayón', cat: 'paint', ico: '🖍️', tip: () => tDisc(0.9), sp: 0.08, fl: 1, grain: 'crayon', sz: 22 },
+  { id: 'l-piel', n: 'Piel', cat: 'paint', ico: '🙂', tip: () => tSoft(0.2), sp: 0.08, fl: 0.07, hj: 0.012, lj: 0.04, sz: 60 },
+  { id: 'l-seco', n: 'Pincel seco', cat: 'paint', ico: '🌾', m: 'bristle', bn: 34, bw: 1, bwid: 0.05, fl: 0.85, lj: 0.1, dry: 0.4, sz: 60 },
+  { id: 'l-esponjoso', n: 'Esponjoso', cat: 'paint', ico: '🧶', tips: R => tDots(R, 1600, 2.2, 1, 0.1, true), v: 3, sp: 0.12, fl: 0.4, rj: 180, sj: 0.2, sz: 80 },
+  { id: 'l-luz', n: 'Luz (glow)', cat: 'light', ico: '🌟', tip: () => tSoft(0), sp: 0.1, fl: 0.05, sz: 70, passes: [{ s: 1.8, f: 0.05, c: 'base' }, { s: 0.7, f: 0.12, c: 'base' }, { s: 0.35, f: 0.7, c: 'light' }] },
+  { id: 'l-sombra-s', n: 'Sombra suave', cat: 'light', ico: '🌫️', tip: () => tSoft(0), sp: 0.1, fl: 0.05, sz: 120 },
+  { id: 'l-sombra-d', n: 'Sombra dura', cat: 'light', ico: '▨', tip: () => tDisc(0.9), sp: 0.08, fl: 1, grain: 'shatch', sz: 50 },
+  { id: 'l-metal', n: 'Metálico', cat: 'light', ico: '🔩', m: 'bristle', bn: 12, bw: 1, bwid: 0.13, fl: 0.9, lj: 0.42, sz: 44 },
+  { id: 'l-vidrio', n: 'Vidrio / brillo', cat: 'light', ico: '🫧', tip: () => tSoft(0.1), sp: 0.1, fl: 0.06, sz: 50, passes: [{ s: 1, f: 0.06, c: 'base' }, { s: 0.22, f: 0.55, c: 'white' }] },
+  { id: 'l-textura', n: 'Pincel de textura', cat: 'tex', ico: '🧱', tips: R => tDots(R, 1400, 3.5, 0.8, 0.2), v: 3, sp: 0.15, fl: 0.8, rj: 180, sj: 0.2, grain: 'rough', sz: 50 },
+  { id: 'l-punti', n: 'Puntillismo', cat: 'tex', ico: '⠿', tips: R => tDots(R, 70, 4, 1.4, 1), v: 3, sp: 0.45, fl: 1, rj: 180, sc: 0.25, sz: 60 },
+  { id: 'l-papel', n: 'Textura de papel', cat: 'tex', ico: '📜', tip: () => tSoft(0.3), sp: 0.1, fl: 0.5, grain: 'paper', sz: 110 },
+  { id: 'l-granulado', n: 'Granulado', cat: 'tex', ico: '░', tip: () => tSoft(0.35), sp: 0.1, fl: 0.9, grain: 'stipple', sz: 70 },
+  { id: 'l-oxido', n: 'Oxidado', cat: 'tex', ico: '🟫', tips: R => tRust(R), v: 4, sp: 0.4, fl: 0.95, rj: 180, sc: 0.35, sj: 0.3, hj: 0.04, lj: 0.18, grain: 'rough', sz: 70 },
+  { id: 'l-grietas', n: 'Grietas', cat: 'tex', ico: '⚡', tips: R => tCrack(R), v: 4, sp: 1.05, fl: 1, rj: 180, sc: 0.3, sj: 0.3, sz: 90 },
+  { id: 'l-manga', n: 'Dibujo manga (rayado)', cat: 'tex', ico: '▤', tip: () => tDisc(0.95), sp: 0.08, fl: 1, grain: 'hatch', sz: 60 },
+  { id: 'l-trama', n: 'Trama de puntos', cat: 'tex', ico: '⁘', tip: () => tDisc(0.95), sp: 0.08, fl: 1, grain: 'dots', sz: 60 },
+  { id: 'l-pixel', n: 'Pixel', cat: 'tex', ico: '👾', m: 'pixel', sz: 30 },
+  { id: 'l-salpicado', n: 'Salpicado', cat: 'fx', ico: '💥', tips: R => tSplash(R, false), v: 4, sp: 0.85, fl: 1, rj: 180, sc: 0.55, sj: 0.55, sz: 60 },
+  { id: 'l-salp-acuarela', n: 'Salpicadura de acuarela', cat: 'fx', ico: '🎆', tips: R => tSplash(R, true), v: 4, sp: 0.9, fl: 0.75, rj: 180, sc: 0.6, sj: 0.5, hj: 0.45, lj: 0.08, sz: 80 },
+  { id: 'l-fuego', n: 'Fuego', cat: 'fx', ico: '🔥', tips: R => tFlame(R), v: 5, sp: 0.12, fl: 0.85, rj: 22, sc: 0.32, sj: 0.55, cols: ['#ffe27a', '#ffb321', '#ff7a1a', '#ef4a14', '#c0260e'], sz: 80 },
+  { id: 'l-agua', n: 'Agua', cat: 'fx', ico: '🌊', tips: R => tCurl(R), v: 4, sp: 0.45, fl: 0.9, fw: true, rj: 40, sc: 0.35, sj: 0.4, lj: 0.18, hj: 0.02, spat: { p: 0.08, n: 4, d: 1.4 }, sz: 70 },
+  { id: 'l-humo', n: 'Humo', cat: 'fx', ico: '💨', tips: R => tSmoke(R), v: 4, sp: 0.3, fl: 0.22, fw: true, rj: 50, sc: 0.3, sj: 0.3, lj: 0.08, sz: 110 },
+  { id: 'l-niebla', n: 'Niebla', cat: 'fx', ico: '🌁', tips: R => tFog(R), v: 3, sp: 0.25, fl: 0.12, rj: 180, sc: 0.45, sj: 0.4, sz: 160 },
+  { id: 'l-brillos', n: 'Estrellas / brillo', cat: 'fx', ico: '✨', tips: () => tSparkle(), v: 1, sp: 1.1, fl: 1, rj: 12, sc: 0.9, sj: 0.7, sz: 50 },
+  { id: 'l-formas', n: 'Formas (estrellas)', cat: 'fx', ico: '⭐', tips: () => tStar(), v: 1, sp: 1.15, fl: 1, rj: 40, sc: 0.9, sj: 0.7, sz: 40 },
+  { id: 'l-hojas', n: 'Hojas', cat: 'nature', ico: '🍃', tips: R => tLeaf(R), v: 4, sp: 0.55, fl: 1, rj: 180, sc: 0.7, sj: 0.4, hj: 0.035, lj: 0.15, sz: 70 },
+  { id: 'l-nube', n: 'Nube', cat: 'nature', ico: '☁️', tips: R => tCloud(R), v: 4, sp: 0.32, fl: 0.92, rj: 8, sc: 0.3, sj: 0.4, lj: 0.04, sz: 130 },
+  { id: 'l-cesped', n: 'Césped', cat: 'nature', ico: '🌱', tips: R => tGrass(R), v: 5, sp: 0.28, fl: 1, rj: 10, sc: 0.18, sj: 0.35, hj: 0.03, lj: 0.16, sz: 80 },
+  { id: 'l-cabello', n: 'Cabello', cat: 'nature', ico: '💇', m: 'bristle', bn: 18, bw: 1, bwid: 0.05, fl: 0.85, lj: 0.22, sz: 50, dyn: { start: 0.45, end: 0.9, speed: 0 } },
+  { id: 'l-vegetacion', n: 'Vegetación', cat: 'nature', ico: '🌿', tips: R => tBranch(R), v: 4, sp: 0.75, fl: 1, rj: 180, sc: 0.45, sj: 0.35, hj: 0.03, lj: 0.14, sz: 90 },
+  { id: 'l-follaje', n: 'Follaje (arbustos)', cat: 'nature', ico: '🌳', tips: R => tBush(R), v: 4, sp: 0.3, fl: 1, rj: 180, sc: 0.3, sj: 0.3, lj: 0.06, sz: 70 },
+];
+function libBrushes() {
+  return LIB_DEFS.map(d => ({ id: d.id, name: d.n, ico: d.ico, cat: d.cat, lib: true, builtin: true, def: d, keep: false,
+    spacing: d.sp ?? 0.2, follow: !!d.fw, rotJitter: d.rj || 0, scatter: d.sc || 0, sizeJitter: d.sj || 0, dyn: d.dyn || null, tips: null,
+    get tip() { return libTips(this)[0].m; } }));
+}
+// Las puntas se dibujan recién la primera vez que se usan (así la app arranca rápido)
+function libTips(B) {
+  if (B.tips) return B.tips;
+  const d = B.def, R = seeded(d.id.length * 131 + d.n.length * 7 + 3);
+  B.tips = d.m ? [tSoft(0)] : d.tip ? [d.tip()] : Array.from({ length: d.v || 3 }, () => d.tips(R));
+  return B.tips;
+}
+// ---- color: variaciones del color elegido (tono / luz) y teñido de la punta con sus brillos y sombras ----
+function hexHsl(h) { let [r, g, b] = hexToRgb(h).map(v => v / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let hh = 0, s = 0;
+  if (mx !== mn) { const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); hh = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh /= 6; }
+  return [hh, s, l]; }
+function hslHex(h, s, l) { h = ((h % 1) + 1) % 1; s = clamp(s, 0, 1); l = clamp(l, 0, 1);
+  const f = n => { const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255); }
+function lerpHex(a, b, t) { const A = hexToRgb(a), B2 = hexToRgb(b); return rgbToHex(A[0] + (B2[0] - A[0]) * t, A[1] + (B2[1] - A[1]) * t, A[2] + (B2[2] - A[2]) * t); }
+const libVarMemo = new Map();
+function libVariants(d, base) {
+  const key = d.id + base; let v = libVarMemo.get(key); if (v) return v;
+  if (libVarMemo.size > 400) libVarMemo.clear();
+  const [h, s, l] = hexHsl(base), R = seeded(base.length + parseInt(base.slice(1), 16) % 9973 + 1);
+  v = Array.from({ length: 8 }, (_, i) => i === 0 ? base : hslHex(h + (R() - 0.5) * 2 * (d.hj || 0), s, l + (R() - 0.5) * 2 * (d.lj || 0) * (l < 0.12 || l > 0.9 ? 0.6 : 1)));
+  libVarMemo.set(key, v); return v;
+}
+function libColor(s, d, R) {
+  if (d.cols) return d.cols[(R() * d.cols.length) | 0];
+  if (!d.hj && !d.lj) return s.color;
+  return libVariants(d, s.color)[(R() * 8) | 0];
+}
+const libTintCache = new Map();
+function libTint(B, i, col) {
+  const key = B.id + i + col; let c = libTintCache.get(key); if (c) return c;
+  if (libTintCache.size > 260) libTintCache.clear();
+  const t = libTips(B)[i]; c = makeCanvas(LT, LT); const x = c.getContext('2d');
+  x.fillStyle = col; x.fillRect(0, 0, LT, LT);
+  if (t.hi) { x.globalCompositeOperation = 'source-atop'; x.drawImage(t.hi, 0, 0); }
+  if (t.lo) { x.globalCompositeOperation = 'source-atop'; x.drawImage(t.lo, 0, 0); }
+  x.globalCompositeOperation = 'destination-in'; x.drawImage(t.m, 0, 0);
+  libTintCache.set(key, c); return c;
+}
+// ---- dibujar ----
+function libDab(s, ctx, B, x, y, size, dir, R, gb) {
+  const d = B.def; if (size < 0.3) return;
+  const sz = size * (1 - B.sizeJitter * R()), off = (R() - 0.5) * 2 * B.scatter * size;
+  const ang = (B.follow ? dir : 0) + (d.rot || 0) + (R() - 0.5) * B.rotJitter * Math.PI / 180;
+  const cx = x - Math.sin(dir) * off, cy = y + Math.cos(dir) * off, nt = libTips(B).length, vi = nt > 1 ? (R() * nt) | 0 : 0;
+  const col = libColor(s, d, R), cs = Math.cos(ang), sn = Math.sin(ang);
+  const passes = d.passes || [{ s: 1, f: d.fl ?? 1, c: 'base' }];
+  for (const P of passes) {
+    const c = P.c === 'base' ? col : P.c === 'white' ? '#ffffff' : lerpHex(col, '#ffffff', 0.82), z = sz * P.s;
+    ctx.globalAlpha = Math.min(1, P.f * (s.flowK || 1));
+    ctx.setTransform(cs, sn, -sn, cs, cx, cy); ctx.drawImage(libTint(B, vi, c), -z / 2, -z / 2, z, z);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (d.spat && R() < d.spat.p) { ctx.fillStyle = col; ctx.globalAlpha = 1;
+    for (let k = 0; k < d.spat.n; k++) { const a = R() * 6.2832, r = size * d.spat.d * (0.5 + R() * 0.5); ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, Math.max(0.6, size * (0.02 + R() * 0.07)), 0, 6.2832); ctx.fill(); } }
+  ctx.globalAlpha = 1;
+  const e = size * (1 + B.scatter + (d.spat ? d.spat.d : 0) + (d.passes ? 0.8 : 0)); gb[0] = Math.min(gb[0], x - e); gb[1] = Math.min(gb[1], y - e); gb[2] = Math.max(gb[2], x + e); gb[3] = Math.max(gb[3], y + e);
+}
+// Cerdas: varias líneas finas paralelas que siguen al dedo (óleo, gouache, cabello, metal).
+// Se pintan opacas: así las uniones entre tramos no se notan (la variedad la da el color de cada cerda).
+function libBristle(s, ctx, B, x, y, size, dir, R, gb) {
+  const d = B.def; let br = s.br;
+  if (!br) { br = s.br = { o: [], w: [], k: [], on: [], p: null };
+    for (let i = 0; i < d.bn; i++) { br.o.push(((i + 0.5) / d.bn - 0.5) * d.bw + (R() - 0.5) * d.bw / d.bn); br.w.push(d.bwid * (0.55 + 0.9 * R())); br.k.push((R() * 8) | 0); br.on.push(true); } }
+  const px = -Math.sin(dir), py = Math.cos(dir), vars = (d.hj || d.lj) ? libVariants(d, s.color) : null, np = [];
+  ctx.lineCap = 'round'; ctx.globalAlpha = 1;
+  for (let i = 0; i < br.o.length; i++) {
+    const nx = x + px * br.o[i] * size, ny = y + py * br.o[i] * size; np.push([nx, ny]);
+    if (!br.p) continue;
+    if (d.dry) { if (br.on[i] && R() < d.dry * 0.18) br.on[i] = false; else if (!br.on[i] && R() < 0.3) br.on[i] = true; }
+    if (!br.on[i]) continue;
+    ctx.strokeStyle = vars ? vars[br.k[i]] : s.color; ctx.lineWidth = Math.max(0.5, br.w[i] * size);
+    ctx.beginPath(); ctx.moveTo(br.p[i][0], br.p[i][1]); ctx.lineTo(nx, ny); ctx.stroke();
+  }
+  br.p = np;
+  const e = size * 0.8; gb[0] = Math.min(gb[0], x - e); gb[1] = Math.min(gb[1], y - e); gb[2] = Math.max(gb[2], x + e); gb[3] = Math.max(gb[3], y + e);
+}
+// Pixel: cuadraditos alineados a una grilla (como pixel art, pero en cualquier dibujo)
+function libPixel(s, ctx, B, x, y, size, R, gb) {
+  const cell = Math.max(2, Math.round(s.size / 5)), r = Math.max(cell * 0.6, size / 2);
+  ctx.fillStyle = s.color; ctx.globalAlpha = 1;
+  const i0 = Math.floor((x - r) / cell), i1 = Math.floor((x + r) / cell), j0 = Math.floor((y - r) / cell), j1 = Math.floor((y + r) / cell);
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) if (Math.hypot((i + 0.5) * cell - x, (j + 0.5) * cell - y) <= r) ctx.fillRect(i * cell, j * cell, cell, cell);
+  gb[0] = Math.min(gb[0], x - r - cell); gb[1] = Math.min(gb[1], y - r - cell); gb[2] = Math.max(gb[2], x + r + cell); gb[3] = Math.max(gb[3], y + r + cell);
+}
+// Un tramo del trazo con un pincel de la biblioteca (sirve para el trazo real y para las muestras)
+function libSegment(s, ctx, B, pt, sizeAt) {
+  const d = B.def, R = s.rng;
+  if (s.last && Math.hypot(pt.x - s.last.x, pt.y - s.last.y) > 0.01) s.dir = Math.atan2(pt.y - s.last.y, pt.x - s.last.x);
+  const dir = s.dir || 0, gb = [Infinity, Infinity, -Infinity, -Infinity];
+  if (d.m === 'bristle') {
+    if (!s.last) { s.last = pt; s.rem = 0; return gb; }   // espera a saber hacia dónde va el trazo
+    walkPath(pt, Math.max(0.8, s.size * 0.1), (x, y, q) => libBristle(s, ctx, B, x, y, sizeAt(q), s.dir || 0, R, gb), s);
+  } else if (d.m === 'pixel') walkPath(pt, Math.max(1, Math.round(s.size / 5) * 0.7), (x, y, q) => libPixel(s, ctx, B, x, y, sizeAt(q), R, gb), s);
+  else walkPath(pt, Math.max(0.7, s.size * B.spacing), (x, y, q) => libDab(s, ctx, B, x, y, sizeAt(q), dir, R, gb), s);
+  if (d.grain && gb[0] < Infinity) {   // el grano del papel: se borra lo que cae en los huecos
+    ctx.save(); ctx.beginPath(); ctx.rect(gb[0], gb[1], gb[2] - gb[0], gb[3] - gb[1]); ctx.clip();
+    ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = grainTile(d.grain); ctx.fillRect(gb[0], gb[1], gb[2] - gb[0], gb[3] - gb[1]); ctx.restore();
+  }
+  return gb;
+}
+// Muestra de un pincel: una "S" con sus puntas, en el color elegido
+function libPreview(canvas, B, color) {
+  const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
+  const d = B.def, size = d.m === 'pixel' ? h * 0.3 : clamp(h * (d.sz >= 100 ? 0.5 : d.sz <= 8 ? 0.14 : d.sz <= 24 ? 0.24 : 0.36), 3, 200);
+  const s = { color, size, rng: seededRand(1234), last: null, rem: 0, dir: 0, flowK: 1 }, pts = [], N = 70;
+  for (let i = 0; i <= N; i++) { const t = i / N; pts.push({ x: w * 0.1 + t * w * 0.8, y: h / 2 + Math.sin(t * Math.PI * 2) * h * 0.18, p: 1, v: 1 }); }
+  let L = 0; pts.forEach((q, i) => { if (i) L += Math.hypot(q.x - pts[i - 1].x, q.y - pts[i - 1].y); q.d = L; });
+  const dy = d.dyn || { start: 0, end: 0 }, tl = Math.min(taperLen(size) * 0.6, 0.45 * L);
+  const sizeAt = q => { let f = 1; if (dy.start > 0) f *= taperF(q.d / (dy.start * tl)); if (dy.end > 0) f *= taperF((L - q.d) / (dy.end * tl)); return size * f; };
+  pts.forEach(q => libSegment(s, ctx, B, q, sizeAt));
+}
+// ---- panel de selección ----
+let libCat = 'all';
+function openBrushLibrary() {
+  const ov = $('blib'); ov.hidden = false; renderBrushLibrary();
+}
+function closeBrushLibrary() { $('blib').hidden = true; }
+let libRenderJob = 0;
+function renderBrushLibrary() {
+  const chips = $('blib-cats'); chips.textContent = '';
+  [['all', 'Todos'], ...LIB_CATS, ['mine', '⭐ Mis pinceles']].forEach(([k, n]) => {
+    const b = document.createElement('button'); b.className = 'chip' + (libCat === k ? ' on' : ''); b.textContent = n;
+    b.onclick = () => { libCat = k; renderBrushLibrary(); }; chips.appendChild(b);
+  });
+  const grid = $('blib-grid'); grid.textContent = ''; grid.scrollTop = 0;
+  const list = libCat === 'mine' ? brushes.filter(B => !B.lib) : brushes.filter(B => B.lib && (libCat === 'all' || B.cat === libCat));
+  const cur = settings.tool === 'custom' ? currentBrush() : null, job = ++libRenderJob, todo = [];
+  let lastCat = null;
+  list.forEach((B, i) => {
+    if (libCat === 'all' && B.cat !== lastCat) { lastCat = B.cat; const t = document.createElement('div'); t.className = 'blib-sec'; t.textContent = (LIB_CATS.find(c => c[0] === B.cat) || [0, ''])[1]; grid.appendChild(t); }
+    const b = document.createElement('button'); b.className = 'blib-card' + (B === cur ? ' on' : '');
+    const cv = makeCanvas(300, 116); const nm = document.createElement('span');
+    nm.textContent = (B.lib ? (LIB_DEFS.indexOf(B.def) + 1) + '. ' : '') + B.name;
+    b.append(cv, nm); b.onclick = () => pickLibBrush(B); grid.appendChild(b); todo.push([cv, B]);
+  });
+  if (!list.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Todavía no creaste pinceles propios. Hacelo desde 🖌️ Pincel › ⭐ Mis pinceles › Crear pincel desde una imagen.'; grid.appendChild(p); }
+  // las muestras se dibujan de a poco para que el panel abra al instante
+  const col = settings.color && settings.color.toLowerCase() !== '#ffffff' ? settings.color : '#1a1a1a';
+  const step = () => { if (job !== libRenderJob || $('blib').hidden) return; const t0 = performance.now();
+    while (todo.length && performance.now() - t0 < 24) { const [cv, B] = todo.shift(); try { B.lib ? libPreview(cv, B, col) : drawBrushPreview(cv, B, col); } catch (e) {} }
+    if (todo.length) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function pickLibBrush(B) {
+  settings.customBrushId = B.id;
+  const mem = settings.bsize && settings.bsize[B.id];
+  setTool('custom');
+  if (B.lib) setSize(mem || B.def.sz || settings.size);
+  saveSettings(); closeBrushLibrary(); renderBrushList(); updateDynUI();
+  toast(`${B.ico || '⭐'} ${B.name}` + (B.def && B.def.op ? ' · se ve transparente como un marcador' : ''), 1600);
 }
 
 /* =====================================================================
@@ -5054,6 +5443,8 @@ function renderBrushTypes() {
     el.appendChild(b);
   });
   renderEraseTypes();
+  { const cb = settings.tool === 'custom' && typeof currentBrush === 'function' ? currentBrush() : null;
+    $('blib-cur').textContent = cb ? `Ahora: ${cb.ico || '⭐'} ${cb.name}` : `${LIB_DEFS.length} pinceles: acuarela, óleo, lápiz, fuego, césped…`; }
   $('pix-opts').hidden = !pixelMode;
   $('chk-pxfill').checked = !!settings.pxFill;
   updateDynUI();
@@ -5132,7 +5523,9 @@ function setTool(t) {
   const fam = BRUSH_FAMILY.includes(t) || PIX_TOOLS.includes(t);
   toolBtns.forEach(b => b.classList.toggle('active', b.dataset.tool === t || (b.dataset.tool === 'brush' && fam)));
   const bt = BRUSH_TYPES.find(b => b.t === settings.brushType) || BRUSH_TYPES[0], pt = PIX_TYPES.find(b => b.t === (settings.pxTool || 'brush')) || PIX_TYPES[0];
-  $('brush-ico').textContent = pixelMode ? pt.ico : bt.ico; $('brush-lbl').textContent = pixelMode ? (pt.t === 'brush' ? 'Lápiz' : pt.name.split(' ')[0]) : bt.short;
+  const cb = !pixelMode && settings.brushType === 'custom' && typeof currentBrush === 'function' ? currentBrush() : null;
+  $('brush-ico').textContent = pixelMode ? pt.ico : cb ? (cb.ico || '⭐') : bt.ico;
+  $('brush-lbl').textContent = pixelMode ? (pt.t === 'brush' ? 'Lápiz' : pt.name.split(' ')[0]) : cb ? cb.name.split(/[ (]/)[0].slice(0, 10) : bt.short;
   viewport.style.cursor = t === 'pan' ? 'grab' : 'crosshair';
   if (t !== 'picker') saveSettings();
   updateBars(); updateQuick(); renderBrushTypes(); if (animMode) updateDock();
@@ -5252,6 +5645,7 @@ function setSize(s) {
   if (vsSizeSet) vsSizeSet(sizeToSlider(settings.size));
   $('vs-size-val').firstChild.textContent = settings.size;
   $('vs-size-val').lastChild.textContent = pixelMode ? (settings.size === 1 ? 'píxel' : 'píxeles') : 'px';
+  if (settings.tool === 'custom' && typeof currentBrush === 'function') { const B = currentBrush(); if (B && B.lib) settings.bsize = { ...(settings.bsize || {}), [B.id]: settings.size }; }
   updateSizeDot(); saveSettings();
 }
 function setOpacity(v) {
@@ -6152,6 +6546,7 @@ function setupUI() {
     // Botón "atrás" de Android: cierra diálogos, paneles y selecciones; si no hay nada abierto, minimiza
     CAP.Plugins.App.addListener('backButton', () => {
       if (closeModal) closeModal();
+      else if (!$('blib').hidden) closeBrushLibrary();
       else if (anyPanelOpen()) closePanels();
       else if (xform) cancelTransform();
       else if (animMode) setAnimMode(null);
@@ -6212,6 +6607,8 @@ function setupUI() {
   });
   $('translen').addEventListener('input', e => { settings.transLen = +e.target.value; $('translen-val').textContent = e.target.value + ' px'; saveSettings(); });
   $('brush-new').onclick = () => openBrushEditor();
+  $('blib-open').onclick = openBrushLibrary; $('blib-close').onclick = closeBrushLibrary;
+  $('blib').addEventListener('click', e => { if (e.target.id === 'blib') closeBrushLibrary(); });
   $('brush-edit').onclick = () => { const B = currentBrush(); if (B && !B.builtin) openBrushEditor(B); };
   $('brush-del').onclick = deleteBrush;
   $('file-brush').addEventListener('change', e => { const f = e.target.files[0]; if (filePickResolve) { filePickResolve(f || null); filePickResolve = null; } });
@@ -6381,6 +6778,7 @@ async function init() {
   setupHome();
   const introDone = playIntro();
   await loadBrushes();
+  if (settings.tool === 'custom') setTool('custom');   // ya están los pinceles: actualiza el ícono y el nombre
   await loadProjects();
   replaceDocument([createLayer('Fondo', true)], 0, true);   // hoja en blanco detrás del inicio
   fitView(); onResize(); updateBars(); renderAnim();
