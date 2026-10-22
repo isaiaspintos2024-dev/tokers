@@ -61,7 +61,9 @@ body.am-anim.has-bones .tool[data-tool=pose]{display:flex}
 #sym-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:4}
 #view-tools{position:absolute;right:8px;top:56px;z-index:15;display:flex;flex-direction:column;gap:6px}
 body.am-rig #view-tools{display:none}
-#comic-ui,#xf-ui,#persp-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
+#shape-chip{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:17;background:#14301fee;border:1px solid #2f5a3c;color:var(--text);
+  border-radius:999px;padding:7px 14px;font-size:13px;white-space:nowrap}
+#comic-ui,#xf-ui,#curve-ui,#persp-ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
 #persp-ui{z-index:4}
 .tool[data-tool=comic]{display:none}
 body.has-comic .tool[data-tool=comic]{display:flex}
@@ -591,11 +593,18 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button data-sa="none"><span>✕</span>Quitar</button>
     </div>
     <!-- Barra de transformación -->
+    <div class="bar" id="curvebar" hidden>
+      <div class="bhint">Arrastrá las manijas para doblar la curva · las puntas también se mueven</div>
+      <button id="cv-cancel"><span>✕</span>Cancelar</button>
+      <button id="cv-done" class="ok"><span>✓</span>Listo</button>
+    </div>
     <div class="bar" id="xbar" hidden>
       <div class="bhint">1 dedo mueve · 2 dedos giran y cambian el tamaño</div>
       <button data-xa="rot"><span>⟳</span>Girar 90°</button>
       <button data-xa="flip"><span>⇋</span>Espejo</button>
       <button data-xa="persp" id="xa-persp"><span>⬚</span>Perspectiva</button>
+      <button data-xa="mesh" id="xa-mesh"><span>🕸️</span>Malla</button>
+      <button data-xa="flipv"><span>⇅</span>Espejo vert.</button>
       <button data-xa="smaller"><span>−</span>Achicar</button>
       <button data-xa="bigger"><span>+</span>Agrandar</button>
       <button data-xa="cancel"><span>✕</span>Cancelar</button>
@@ -608,6 +617,10 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button data-pm="1"><span>•</span>1 punto</button>
       <button data-pm="2"><span>••</span>2 puntos</button>
       <button data-pm="3"><span>⁖</span>3 puntos</button>
+      <button data-pm="4"><span>▦</span>Cuadrícula</button>
+      <button data-pm="5"><span>📏</span>Regla</button>
+      <button id="pg-gminus"><span>−</span>Más fina</button>
+      <button id="pg-gplus"><span>＋</span>Más grande</button>
       <div class="vsep"></div>
       <button id="pg-snap"><span>🧲</span>Ajustar trazos</button>
       <button id="pg-reset"><span>↺</span>Ubicar de nuevo</button>
@@ -751,6 +764,12 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="blib-open nopix" id="blib-open"><span class="bo-ico">📚</span><span><b>Biblioteca de pinceles</b><small id="blib-cur">44 pinceles: acuarela, óleo, lápiz, fuego, césped…</small></span><span class="bo-go">›</span></button>
         <div class="ptitle" id="btypes-title">Tipo de pincel</div>
         <div class="btypes" id="btypes"></div>
+        <div id="shape-sec" class="nopix">
+          <div class="ptitle">📐 Dibujar como</div>
+          <div class="seg" id="shape-seg"><button data-shp="free">✏️ Libre</button><button data-shp="line">╱ Línea</button><button data-shp="rect">▭ Rect.</button><button data-shp="ellipse">◯ Elipse</button><button data-shp="curve">∿ Curva</button></div>
+          <p class="hint">Con una forma elegida, arrastrás de una punta a la otra y sale con el pincel que tengas. La <b>curva</b> se dobla después con sus dos manijas.</p>
+          <div class="sep"></div>
+        </div>
         <div id="pix-opts" hidden>
           <label class="check"><input type="checkbox" id="chk-pxfill"> Rectángulo y elipse rellenos</label>
           <label class="check"><input type="checkbox" id="chk-grid"> Mostrar la cuadrícula de píxeles (al acercar)</label>
@@ -914,16 +933,31 @@ function paintEl(x, el, k, dim) {
   x.drawImage(el, 0, 0, W, H);
   x.globalAlpha = 1; x.filter = 'none'; x.globalCompositeOperation = 'source-over';
 }
+function paintSeq(x, list, k, dim) {
+  for (let i = 0; i < list.length;) {
+    const cg = list[i].dataset.cg;
+    if (!cg) { paintEl(x, list[i++], k, dim); continue; }
+    const run = []; while (i < list.length && list[i].dataset.cg === cg) run.push(list[i++]);
+    const cv = x.canvas, T = x.getTransform();
+    if (!cgTmp) cgTmp = document.createElement('canvas');
+    if (cgTmp.width !== cv.width || cgTmp.height !== cv.height) { cgTmp.width = cv.width; cgTmp.height = cv.height; }
+    const tx = cgTmp.getContext('2d'); tx.setTransform(1, 0, 0, 1, 0, 0); tx.clearRect(0, 0, cgTmp.width, cgTmp.height); tx.setTransform(T);
+    run.forEach(el => paintEl(tx, el, k, dim));
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = +run[0].dataset.cgop || 1; x.globalCompositeOperation = run[0].dataset.cgblend || 'source-over';
+    x.drawImage(cgTmp, 0, 0); x.restore();
+  }
+}
 function paintEls(x, els, k) {
   const dim = wrapper.classList.contains('rigdim');
   for (let i = 0; i < els.length;) {
     const fid = els[i].dataset.fold, F = fid ? folderById(fid) : null;
     if (needsGroup(F)) {   // carpeta con opacidad o efectos: se arma junta y se le aplica una sola vez
       const grp = []; while (i < els.length && els[i].dataset.fold === fid) grp.push(els[i++]);
-      drawGrouped(x, F, tx => grp.forEach(el => paintEl(tx, el, k, dim)));
+      drawGrouped(x, F, tx => paintSeq(tx, grp, k, dim));
       continue;
     }
-    paintEl(x, els[i++], k, dim);
+    const run = [els[i++]]; while (i < els.length && !needsGroup(folderById(els[i].dataset.fold))) run.push(els[i++]);
+    paintSeq(x, run, k, dim);
   }
 }
 function paintPage(x, dpr) {
@@ -940,7 +974,7 @@ function drawScreen() {
   const M = new DOMMatrix().scale(dpr, dpr).multiply(view), k = viewScale() * dpr, x = scx;
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cw, ch);
   const els = screenEls();
-  if (stroke && !stroke.clipped && !needsGroup(folderById(layers[activeIndex] && layers[activeIndex].folder))) {
+  if (stroke && !stroke.clipped && !needsGroup(folderById(layers[activeIndex] && layers[activeIndex].folder)) && !(layers[activeIndex] && cgBaseOf(layers[activeIndex]))) {
     // mientras se dibuja: lo de abajo y lo de arriba quedan guardados; solo se repinta la capa activa y el trazo
     // si el trazo no toca la capa hasta soltar (pincel común), la capa activa también queda guardada abajo
     const za = activeIndex * 3 + 1, key = stroke, bake = !stroke.direct;
@@ -1003,7 +1037,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard' };
+  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard', shapeMode:'free' };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -1242,7 +1276,16 @@ function fxFilter(fx) {
 }
 const hasFx = fx => !!fxFilter(fx);
 function layerFilter(l) { const F = folderOf(l); return [fxFilter(l.fx), fxFilter(F && F.fx)].filter(Boolean).join(' ') || 'none'; }
-function effOpacity(l) { const F = folderOf(l); return l.opacity * (F ? F.opacity : 1); }
+// Grupo de recorte: si la base no está al 100 %, la base y sus recortes se arman juntos y después se les aplica
+// la opacidad (y el modo) de la base, como en Photoshop
+function cgBaseOf(l) {
+  if (onion && !animMode) return null;
+  const b = l.clip ? clipBase(l) : l; if (!b || b.opacity >= 1) return null;
+  const i = layers.indexOf(b); if (i < 0 || !(layers[i + 1] && layers[i + 1].clip)) return null;
+  return b;
+}
+function layerAlpha(l) { const b = cgBaseOf(l); return b === l ? 1 : l.opacity; }
+function effOpacity(l) { const F = folderOf(l), b = l.clip ? cgBaseOf(l) : null; return l.opacity * (b ? b.opacity : 1) * (F ? F.opacity : 1); }
 function folderVisible(l) { const F = folderOf(l); return !F || F.visible; }
 // Modos de fusión: cómo se mezcla la capa con lo que tiene debajo (los trae incorporados el lienzo)
 const BLENDS = [['normal', 'Normal', 'Tapa lo de abajo'], ['multiply', 'Multiplicar', 'Oscurece: ideal para sombras y para pintar debajo de la línea'],
@@ -1259,14 +1302,33 @@ const blendName = b => (BLENDS.find(x => x[0] === (b || 'normal')) || BLENDS[0])
 // Dibuja una capa con su opacidad y efectos (para exportar, miniaturas, video…)
 const ctxScale = ctx => { const T = ctx.getTransform(); return Math.hypot(T.a, T.b) || 1; };
 function drawLayerTo(ctx, l, src) {   // una capa con su opacidad, modo de fusión y efectos (desenfoque y sombra ajustados a la escala)
-  ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = blendOp(l);
+  const gb = cgBaseOf(l);
+  ctx.globalAlpha = layerAlpha(l); ctx.globalCompositeOperation = gb === l ? 'source-over' : blendOp(l);
   const flt = fxFilter(l.fx); if (flt) ctx.filter = scaleFilter(flt, ctxScale(ctx));
   ctx.drawImage(src, 0, 0, W, H);
   if (flt) ctx.filter = 'none';
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 }
 const needsGroup = F => !!(F && (F.opacity < 1 || hasFx(F.fx)));
-let groupTmp = null;
+let groupTmp = null, cgTmp = null;
+// Dibuja una lista de capas; los grupos de recorte se arman aparte y se pegan con la opacidad de la base
+function drawSeq(ctx, list, drawOne) {
+  for (let i = 0; i < list.length;) {
+    const b = cgBaseOf(list[i]);
+    if (b && list[i] === b) {
+      const run = [list[i++]]; while (i < list.length && list[i].clip && clipBase(list[i]) === b) run.push(list[i++]);
+      const cv = ctx.canvas, T = ctx.getTransform();
+      if (!cgTmp) cgTmp = document.createElement('canvas');
+      if (cgTmp.width !== cv.width || cgTmp.height !== cv.height) { cgTmp.width = cv.width; cgTmp.height = cv.height; }
+      const tx = cgTmp.getContext('2d'); tx.setTransform(1, 0, 0, 1, 0, 0); tx.clearRect(0, 0, cgTmp.width, cgTmp.height); tx.setTransform(T);
+      tx.imageSmoothingEnabled = ctx.imageSmoothingEnabled;
+      run.forEach(m => drawOne(tx, m));
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = b.opacity; ctx.globalCompositeOperation = blendOp(b); ctx.drawImage(cgTmp, 0, 0); ctx.restore();
+      continue;
+    }
+    drawOne(ctx, list[i++]);
+  }
+}
 function drawGrouped(ctx, F, drawFn) {
   const cv = ctx.canvas, T = ctx.getTransform();
   if (!groupTmp) groupTmp = document.createElement('canvas');
@@ -1285,10 +1347,11 @@ function drawLayerList(ctx, srcOf) {
     const l = layers[i], F = folderById(l.folder);
     if (needsGroup(F)) {
       const mem = []; while (i < layers.length && layers[i].folder === l.folder) mem.push(layers[i++]);
-      if (F.visible && F.opacity > 0) drawGrouped(ctx, F, tx => mem.forEach(m => { const s = srcOf(m); if (s) drawLayerTo(tx, m, s); }));
+      if (F.visible && F.opacity > 0) drawGrouped(ctx, F, tx => drawSeq(tx, mem, (c, m) => { const s = srcOf(m); if (s) drawLayerTo(c, m, s); }));
       continue;
     }
-    const s = srcOf(l); if (s) drawLayerTo(ctx, l, s); i++;
+    const run = [layers[i++]]; while (i < layers.length && !needsGroup(folderById(layers[i].folder))) run.push(layers[i++]);
+    drawSeq(ctx, run, (c, m) => { const s = srcOf(m); if (s) drawLayerTo(c, m, s); });
   }
   ctx.globalAlpha = 1;
 }
@@ -1451,7 +1514,7 @@ function applyLayerStyles() {
   markScreen();
   layers.forEach((l, i) => {
     const base = clipBase(l);
-    let op = l.opacity, show = l.visible && (!base || base.visible) && folderVisible(l), filt = '';
+    let op = layerAlpha(l), show = l.visible && (!base || base.visible) && folderVisible(l), filt = '';
     if (onion && !animMode) {      // cebolla de capas: la de abajo en rojo, la de arriba en verde
       if (i === activeIndex) { /* normal */ }
       else if (i === activeIndex - 1) { op *= 0.45; filt = 'sepia(1) saturate(7) hue-rotate(-45deg)'; }
@@ -1464,6 +1527,9 @@ function applyLayerStyles() {
     else if (l.disp) l.disp.style.display = 'none';
     const fx = fxFilter(l.fx) || 'none';   // la opacidad y los efectos de la carpeta se aplican al grupo entero
     el.dataset.fold = l.folder || ''; el.dataset.blend = blendOp(l) === 'source-over' ? '' : blendOp(l);
+    const gb = cgBaseOf(l);
+    if (gb) { el.dataset.cg = String(gb.id); el.dataset.cgop = gb.opacity; el.dataset.cgblend = blendOp(gb); if (gb === l) el.dataset.blend = ''; }
+    else { delete el.dataset.cg; delete el.dataset.cgop; delete el.dataset.cgblend; }
     el.style.zIndex = i * 3 + 1; el.style.display = show ? '' : 'none'; el.style.opacity = op; el.style.filter = [fx === 'none' ? '' : fx, filt].join(' ').trim();
   });
   $('btn-onion').classList.toggle('on', onion);
@@ -1579,7 +1645,7 @@ function pushHistory(entry) {
   }
   updateUndoButtons();
 }
-function busy() { if (xform) { toast('Primero tocá ✓ Listo o ✕ Cancelar'); return true; } return !!stroke; }
+function busy() { if (xform) { toast('Primero tocá ✓ Listo o ✕ Cancelar'); return true; } if (curveStroke) { cancelCurve(); return true; } return !!stroke; }
 function undo(fromGesture) {
   markScreen();
   stopPlay();
@@ -1845,7 +1911,8 @@ function setView(m) {
   selSvg.style.setProperty('--sw', (2.4 / s).toFixed(2));
   selSvg.style.setProperty('--dash', (7 / s).toFixed(2));
   if (comicSel && settings.tool === 'comic') updateComicUI();
-  if (xform && xform.quad) updateXfUi();
+  if (xform && (xform.quad || xform.mesh)) updateXfUi();
+  if (curveStroke) updateCurveUi();
   if (scene.persp && scene.persp.mode) updatePerspUi();
   if (symOn()) updateSymUi();
   $('btn-flip2').classList.toggle('on', isFlipped());
@@ -2544,6 +2611,7 @@ function drawFloat() {
   const x = xform;
   fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, W, H);
   fctx.imageSmoothingEnabled = !pixelMode; fctx.imageSmoothingQuality = 'high';
+  if (x.mesh) { warpDraw(fctx, x.src, meshMap(x.mesh)); selG.setAttribute('transform', 'matrix(1 0 0 1 -99999 -99999)'); return; }
   if (x.quad) { (pixelMode ? warpPixels : warpDraw)(fctx, x.src, x.quad); selG.setAttribute('transform', 'matrix(1 0 0 1 -99999 -99999)'); return; }
   fctx.setTransform(x.M); fctx.drawImage(x.src, 0, 0);
   fctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2590,9 +2658,16 @@ function squareToQuad(q) {
   return (u, v) => { const w = g * u + h * v + 1; return [(a * u + b * v + x0) / w, (d * u + e * v + y0) / w]; };
 }
 // Dibuja la imagen deformada: se parte en una malla de triangulitos y cada uno se dibuja con su propia transformación
+// Malla: 4 × 4 puntos que doblan la imagen en forma suave (superficie de Bézier)
+function meshMap(P) {
+  const B = t => { const u = 1 - t; return [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t]; };
+  return (u, v) => { const bu = B(u), bv = B(v); let x = 0, y = 0;
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { const k = bu[i] * bv[j], q = P[j * 4 + i]; x += k * q[0]; y += k * q[1]; }
+    return [x, y]; };
+}
 function warpDraw(ctx, img, quad) {
-  const map = squareToQuad(quad), sw = img.width, sh = img.height;
-  const N = Math.max(4, Math.min(16, Math.round(Math.max(sw, sh) / 40)));
+  const map = typeof quad === 'function' ? quad : squareToQuad(quad), sw = img.width, sh = img.height;
+  const N = typeof quad === 'function' ? Math.max(8, Math.min(24, Math.round(Math.max(sw, sh) / 24))) : Math.max(4, Math.min(16, Math.round(Math.max(sw, sh) / 40)));
   const P = [];
   for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) P.push(map(i / N, j / N));
   const at = (i, j) => P[j * (N + 1) + i];
@@ -2625,6 +2700,14 @@ function warpDraw(ctx, img, quad) {
 const xfUi = document.createElementNS(SVGNS, 'svg'); xfUi.id = 'xf-ui'; viewport.appendChild(xfUi);
 function updateXfUi() {
   const x = xform;
+  if (x && x.mesh) {   // malla: líneas de la superficie + puntos
+    const T = ([a, b]) => { const q = view.transformPoint({ x: a, y: b }); return (Math.round(q.x * 10) / 10) + ',' + (Math.round(q.y * 10) / 10); };
+    const f = meshMap(x.mesh); let ui = '<g fill="none" stroke="#ffd23f" stroke-width="1.6" stroke-opacity=".85">';
+    for (let k = 0; k <= 3; k++) { let a = '', b = ''; for (let t = 0; t <= 20; t++) { a += T(f(k / 3, t / 20)) + ' '; b += T(f(t / 20, k / 3)) + ' '; } ui += `<polyline points="${a}"/><polyline points="${b}"/>`; }
+    ui += '</g>';
+    x.mesh.forEach(([a, b], i) => { const [X, Y] = T([a, b]).split(','); const corner = [0, 3, 12, 15].includes(i); ui += `<circle cx="${X}" cy="${Y}" r="${corner ? 13 : 11}" fill="${corner ? '#ffd23f' : '#fff'}" fill-opacity=".9" stroke="#111" stroke-width="2"/>`; });
+    xfUi.innerHTML = ui; return;
+  }
   if (!x || !x.quad) { if (xfUi.firstChild) xfUi.innerHTML = ''; return; }
   const T = ([a, b]) => { const q = view.transformPoint({ x: a, y: b }); return [Math.round(q.x * 10) / 10, Math.round(q.y * 10) / 10]; };
   const s = x.quad.map(T);
@@ -2648,8 +2731,24 @@ function quadCorner(p) {   // ¿tocó una esquina? (en píxeles de pantalla)
   xform.quad.forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
   return best;
 }
+function toggleMesh() {
+  const x = xform; if (!x) return;
+  if (pixelMode) return toast('La malla no está en pixel art (doblaría los píxeles)', 2400);
+  if (x.mesh) { x.mesh = null; drawFloat(); updateBars(); return toast('Malla quitada', 1200); }
+  const map = x.quad ? squareToQuad(x.quad) : (u, v) => { const q = x.M.transformPoint(new DOMPoint(u * x.b.w, v * x.b.h)); return [q.x, q.y]; };
+  x.mesh = []; for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.mesh.push(map(i / 3, j / 3));
+  x.quad = null; drawFloat(); updateBars();
+  toast('🕸️ Arrastrá los puntos para doblar el dibujo. Arrastrando lejos de los puntos se mueve todo', 3500);
+}
+function meshPoint(p) {
+  if (!xform || !xform.mesh) return -1;
+  let best = -1, bd = 30;
+  xform.mesh.forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
 function togglePerspective() {
   const x = xform; if (!x) return;
+  if (x.mesh) { x.mesh = null; }
   if (x.quad) { x.quad = null; drawFloat(); updateBars(); return toast('Perspectiva quitada', 1200); }
   const o = x.M;
   x.quad = [[0, 0], [x.b.w, 0], [x.b.w, x.b.h], [0, x.b.h]].map(([a, b]) => { const q = o.transformPoint(new DOMPoint(a, b)); return [q.x, q.y]; });
@@ -2672,6 +2771,10 @@ function perspDefaults(n) {
   return [[W * 0.06, y], [W * 0.94, y], [W / 2, H * 0.97]];
 }
 function guideOn() { return scene.persp && scene.persp.mode > 0; }
+// Guías: 1-3 = puntos de fuga · 4 = cuadrícula · 5 = regla
+const vpN = P => P && P.mode <= 3 ? P.mode : 0;
+const gridSize = P => P.grid || Math.max(8, Math.round(Math.min(W, H) / 16));
+const rulerPts = P => P.ruler || [[W * 0.2, H * 0.5], [W * 0.8, H * 0.5]];
 function updatePerspUi() {
   const P = scene.persp;
   if (!P || !P.mode || document.body.classList.contains('at-home')) { if (perspUi.firstChild) perspUi.innerHTML = ''; return; }
@@ -2679,7 +2782,21 @@ function updatePerspUi() {
   const page = [T(0, 0), T(W, 0), T(W, H), T(0, H)];
   const R = 6000, n = P.mode === 1 ? 36 : 28;
   let svg = `<defs><clipPath id="pg-clip"><polygon points="${page.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}"/></clipPath></defs><g clip-path="url(#pg-clip)" stroke-width="1">`;
-  P.vps.slice(0, P.mode).forEach(([vx, vy], k) => {
+  if (P.mode === 4) {   // cuadrícula
+    const g = gridSize(P); let d = '', d5 = '';
+    for (let x = 0, k = 0; x <= W + 0.5; x += g, k++) { const [a, b] = T(x, 0), [c, e] = T(x, H), seg = `M${a.toFixed(1)} ${b.toFixed(1)}L${c.toFixed(1)} ${e.toFixed(1)}`; if (k % 4) d += seg; else d5 += seg; }
+    for (let y = 0, k = 0; y <= H + 0.5; y += g, k++) { const [a, b] = T(0, y), [c, e] = T(W, y), seg = `M${a.toFixed(1)} ${b.toFixed(1)}L${c.toFixed(1)} ${e.toFixed(1)}`; if (k % 4) d += seg; else d5 += seg; }
+    perspUi.innerHTML = svg + `<path d="${d}" stroke="#3fb8ff" stroke-opacity=".35" fill="none"/><path d="${d5}" stroke="#3fb8ff" stroke-opacity=".7" fill="none"/></g>`;
+    return;
+  }
+  if (P.mode === 5) {   // regla: una recta que se puede mover y girar
+    const [p0, p1] = rulerPts(P), [a, b] = T(...p0), [c, e] = T(...p1), L = Math.hypot(c - a, e - b) || 1, ux = (c - a) / L, uy = (e - b) / L;
+    svg += `<line x1="${(a - ux * R).toFixed(1)}" y1="${(b - uy * R).toFixed(1)}" x2="${(c + ux * R).toFixed(1)}" y2="${(e + uy * R).toFixed(1)}" stroke="#ffd23f" stroke-width="2" stroke-opacity=".9" stroke-dasharray="10 6"/></g>`;
+    svg += `<line x1="${a.toFixed(1)}" y1="${b.toFixed(1)}" x2="${c.toFixed(1)}" y2="${e.toFixed(1)}" stroke="#ffd23f" stroke-width="7" stroke-opacity=".45" stroke-linecap="round"/>`;
+    if (perspEdit) [[a, b], [c, e]].forEach(([x, y], k) => { svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="#ffd23f" stroke="#111" stroke-width="2"/><text x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="800" fill="#111">${k + 1}</text>`; });
+    perspUi.innerHTML = svg; return;
+  }
+  P.vps.slice(0, vpN(P)).forEach(([vx, vy], k) => {
     const [sx, sy] = T(vx, vy);
     let d = '';
     for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; d += `M${sx.toFixed(1)} ${sy.toFixed(1)}L${(sx + Math.cos(a) * R).toFixed(1)} ${(sy + Math.sin(a) * R).toFixed(1)}`; }
@@ -2692,7 +2809,7 @@ function updatePerspUi() {
   else { const o = T(0, 0), r = T(1, 0), L = Math.hypot(r[0] - o[0], r[1] - o[1]) || 1; hx = (r[0] - o[0]) / L; hy = (r[1] - o[1]) / L; }
   svg += `<line x1="${(a0 - hx * R).toFixed(1)}" y1="${(b0 - hy * R).toFixed(1)}" x2="${(a0 + hx * R).toFixed(1)}" y2="${(b0 + hy * R).toFixed(1)}" stroke="#ffd23f" stroke-width="2" stroke-opacity=".8"/>`;
   svg += '</g>';
-  if (perspEdit) P.vps.slice(0, P.mode).forEach(([vx, vy], k) => {
+  if (perspEdit) P.vps.slice(0, vpN(P)).forEach(([vx, vy], k) => {
     const [sx, sy] = T(vx, vy);
     svg += `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="15" fill="${VP_COLORS[k]}" stroke="#fff" stroke-width="3"/><text x="${sx.toFixed(1)}" y="${(sy + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">${k + 1}</text>`;
   });
@@ -2701,8 +2818,10 @@ function updatePerspUi() {
 function setPerspMode(n) {
   const P = scene.persp || (scene.persp = { mode: 0, vps: perspDefaults(3), snap: true });
   const before = JSON.stringify(P);
-  if (n > 0 && (P.mode === 0 || !P.vps || P.vps.length < 3)) P.vps = perspDefaults(3);
-  if (n > 0 && P.mode !== n) { const d = perspDefaults(n); P.vps = d.concat(perspDefaults(3).slice(d.length)); }
+  if (n > 0 && (!P.vps || P.vps.length < 3)) P.vps = perspDefaults(3);
+  if (n > 0 && n <= 3 && P.mode !== n) { const d = perspDefaults(n); P.vps = d.concat(perspDefaults(3).slice(d.length)); }
+  if (n === 4 && !P.grid) P.grid = gridSize(P);
+  if (n === 5 && !P.ruler) P.ruler = rulerPts(P);
   P.mode = n;
   perspChanged(before);
 }
@@ -2724,6 +2843,7 @@ function updatePerspBar() {
   $('perspbar').hidden = !perspEdit;
   document.querySelectorAll('[data-pm]').forEach(b => b.classList.toggle('on', +b.dataset.pm === P.mode));
   $('pg-snap').classList.toggle('on', !!P.snap && P.mode > 0);
+  $('pg-gminus').hidden = $('pg-gplus').hidden = P.mode !== 4;
   $('btn-persp').classList.toggle('on', P.mode > 0);
   if (perspEdit) document.body.classList.add('has-bar');
 }
@@ -2731,12 +2851,22 @@ function perspDown(e, p) {
   mode = 'persp'; drawPointerId = e.pointerId; drawType = e.pointerType; perspDrag = null;
   const P = scene.persp; if (!P || !P.mode) return;
   let best = -1, bd = 40;
-  P.vps.slice(0, P.mode).forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
+  if (P.mode === 5) {
+    const R2 = rulerPts(P); let best2 = -1, bd2 = 34;
+    R2.forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd2) { bd2 = d; best2 = i; } });
+    const c = toCanvas(p); perspDrag = { ruler: best2, c0: c, r0: R2.map(q => q.slice()), before: JSON.stringify(P) }; return;
+  }
+  P.vps.slice(0, vpN(P)).forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
   if (best >= 0) perspDrag = { i: best, before: JSON.stringify(P) };
 }
 function perspMove(p) {
   if (!perspDrag) return;
   const c = toCanvas(p), P = scene.persp;
+  if (perspDrag.ruler !== undefined) {
+    if (perspDrag.ruler >= 0) { P.ruler = perspDrag.r0.map(q => q.slice()); P.ruler[perspDrag.ruler] = [c.x, c.y]; }
+    else { const dx = c.x - perspDrag.c0.x, dy = c.y - perspDrag.c0.y; P.ruler = perspDrag.r0.map(([a, b]) => [a + dx, b + dy]); }
+    return updatePerspUi();
+  }
   P.vps[perspDrag.i] = [c.x, c.y];
   if (P.mode === 2 && perspDrag.i < 2) P.vps[1 - perspDrag.i][1] = c.y;   // en 2 puntos el horizonte queda derecho
   updatePerspUi();
@@ -2746,14 +2876,22 @@ function perspUp() { mode = null; if (perspDrag) { perspChanged(perspDrag.before
 function perspSnap(s, c) {
   const P = scene.persp;
   if (!P || !P.mode || !P.snap || perspEdit || !['brush', 'calligraphy', 'airbrush', 'charcoal', 'custom', 'eraser'].includes(s.tool)) return c;
-  if (!s.snapO) { s.snapO = { x: c.x, y: c.y }; return c; }
+  if (!s.snapO) {
+    if (P.mode === 5) { const [r0, r1] = rulerPts(P), rx = r1[0] - r0[0], ry = r1[1] - r0[1], rl2 = rx * rx + ry * ry || 1, t = ((c.x - r0[0]) * rx + (c.y - r0[1]) * ry) / rl2, qx = r0[0] + rx * t, qy = r0[1] + ry * t;
+      if (Math.hypot(c.x - qx, c.y - qy) * viewScale() < 28) { s.snapO = { x: qx, y: qy }; s.snapRaw = { x: c.x, y: c.y }; return { x: qx, y: qy }; } }
+    s.snapO = { x: c.x, y: c.y }; return c;
+  }
   if (s.snapLine === undefined) {
-    const mx = c.x - s.snapO.x, my = c.y - s.snapO.y, L = Math.hypot(mx, my);
-    if (L * viewScale() < 14) return null;   // se espera un poquito para saber hacia dónde va
-    const cands = P.vps.slice(0, P.mode).map(([a, b]) => [a - s.snapO.x, b - s.snapO.y]);
+    const o = s.snapRaw || s.snapO, mx = c.x - o.x, my = c.y - o.y, L = Math.hypot(mx, my);   // la dirección se mide desde donde apoyaste
+    if (L * viewScale() < (P.mode === 5 ? 24 : 14)) return null;   // se espera un poquito para saber hacia dónde va
+    const cands = P.vps.slice(0, vpN(P)).map(([a, b]) => [a - s.snapO.x, b - s.snapO.y]);
+    if (P.mode === 4) cands.push([1, 0], [0, 1]);
+    if (P.mode === 5) { const [r0, r1] = rulerPts(P), rx = r1[0] - r0[0], ry = r1[1] - r0[1], rl = Math.hypot(rx, ry) || 1;
+      cands.push([rx, ry]);
+      }
     if (P.mode === 1) cands.push([1, 0], [0, 1]);
     if (P.mode === 2) cands.push([0, 1]);
-    let best = null, bd = Math.cos(25 * Math.PI / 180);
+    let best = null, bd = Math.cos((P.mode === 5 ? 40 : 25) * Math.PI / 180);   // la regla es más tolerante: la usás a propósito
     for (const [dx, dy] of cands) {
       const dl = Math.hypot(dx, dy); if (dl < 1e-6) continue;
       const k = Math.abs((dx * mx + dy * my) / (dl * L));
@@ -2768,6 +2906,12 @@ function perspSnap(s, c) {
 
 function xformAround(fn) {   // aplica giro/espejo/escala alrededor del centro del contenido
   const x = xform;
+  if (x.mesh) {   // en malla: se aplica a todos los puntos
+    const cx = x.mesh.reduce((a, q) => a + q[0], 0) / 16, cy = x.mesh.reduce((a, q) => a + q[1], 0) / 16;
+    const m = fn(new DOMMatrix().translate(cx, cy)).translate(-cx, -cy);
+    x.mesh = x.mesh.map(([a, b]) => { const q = m.transformPoint(new DOMPoint(a, b)); return [q.x, q.y]; });
+    return drawFloat();
+  }
   if (x.quad) {   // en perspectiva: se aplica a las 4 esquinas
     const cx = x.quad.reduce((a, q) => a + q[0], 0) / 4, cy = x.quad.reduce((a, q) => a + q[1], 0) / 4;
     const m = fn(new DOMMatrix().translate(cx, cy)).translate(-cx, -cy);
@@ -2786,11 +2930,13 @@ function commitTransform() {
   const x = xform; if (!x) return;
   const l = x.layer;
   l.ctx.save(); l.ctx.imageSmoothingEnabled = !pixelMode; l.ctx.imageSmoothingQuality = 'high';
-  if (x.quad) (pixelMode ? warpPixels : warpDraw)(l.ctx, x.src, x.quad); else { l.ctx.setTransform(x.M); l.ctx.drawImage(x.src, 0, 0); }
+  if (x.mesh) warpDraw(l.ctx, x.src, meshMap(x.mesh));
+  else if (x.quad) (pixelMode ? warpPixels : warpDraw)(l.ctx, x.src, x.quad); else { l.ctx.setTransform(x.M); l.ctx.drawImage(x.src, 0, 0); }
   l.ctx.restore();
   const after = snapshot(l), rs = restorer(l);
   let mapPt;
-  if (x.quad) { const H = squareToQuad(x.quad); mapPt = ([px, py]) => H((px - x.b.x) / x.b.w, (py - x.b.y) / x.b.h); }
+  if (x.mesh) { const H = meshMap(x.mesh); mapPt = ([px, py]) => H(clamp((px - x.b.x) / x.b.w, 0, 1), clamp((py - x.b.y) / x.b.h, 0, 1)); }
+  else if (x.quad) { const H = squareToQuad(x.quad); mapPt = ([px, py]) => H((px - x.b.x) / x.b.w, (py - x.b.y) / x.b.h); }
   else { const o = x.M.multiply(new DOMMatrix().translate(-x.b.x, -x.b.y)); mapPt = ([px, py]) => { const q = o.transformPoint(new DOMPoint(px, py)); return [q.x, q.y]; }; }
   const newSel = { pts: x.sel.pts.map(mapPt), inverted: x.sel.inverted };
   const oldSel = x.sel, before = x.before;
@@ -2877,6 +3023,9 @@ function startStroke(e, p) {
     color: erasing ? '#000000' : settings.color, size: settings.size, opacity: settings.opacity, smooth: pixelMode ? 0 : settings.smoothing,
     strength: settings.smudge, usePressure: !pixelMode && settings.pressure && e.pointerType === 'pen',
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
+  if (!pixelMode && settings.shapeMode && settings.shapeMode !== 'free' && QS_TOOLS.includes(tool)) {
+    stroke.force = settings.shapeMode; stroke.smooth = 0; const c0 = toCanvas(p); stroke.a0 = { x: c0.x, y: c0.y };
+  }
   if (layer.isMask && !smudging) {   // máscara: pintar oculta, borrar vuelve a mostrar
     stroke.direct = true; strokeCanvas.style.display = 'none';
     if (erasing) { stroke.erasing = false; stroke.reveal = true; } else stroke.erasing = true;
@@ -2919,6 +3068,7 @@ function strokeColorAt(s, d) {
 }
 function strokeMove(p, ev) {
   const s = stroke; if (!s) return;
+  if (s.force) { if (!s.curveEdit) forceShapeMove(s, toCanvas(p)); return; }
   if (s.shape) return shapeFollow(s, toCanvas(p));
   const c = perspSnap(s, toCanvas(p)); if (!c) return;
   const pr = s.usePressure ? Math.max(0.05, ev.pressure || 0) : 1;
@@ -3196,6 +3346,10 @@ function eraseComposite() {
 function endStroke() {
   markScreen();
   const s = stroke; if (!s) return;
+  if (s.force === 'curve' && s.shape && !s.curveDone) {   // la curva queda abierta para doblarla
+    s.curveEdit = true; curveStroke = s; clearTimeout(s.qsT); updateCurveUi(); updateBars();
+    toast('∿ Doblá la curva con las manijas amarillas. Después tocá ✓ Listo', 3000); return;
+  }
   clearTimeout(s.qsT);
   if (s.lastRaw) {
     const f = { ...s.lastRaw, v: s.sp ? s.sp.v : s.lastRaw.v };
@@ -3234,7 +3388,7 @@ function endStroke() {
     const before = bctx.getImageData(b.x, b.y, b.w, b.h);
     const after = ctx.getImageData(b.x, b.y, b.w, b.h);
     pushHistory(pixelEntry(s.layer, b.x, b.y, before, after));
-    layerChanged(s.layer);
+    layerChanged(s.layer); scheduleSave(300);   // se guarda enseguida (si la app se cierra de golpe no se pierde el trazo)
   }
 }
 function replayStroke(s) {
@@ -5135,11 +5289,11 @@ function drawLayersAt(ctx, f) {
     const l = layers[i], F = folderById(l.folder);
     if (needsGroup(F)) {
       const mem = []; while (i < layers.length && layers[i].folder === l.folder) mem.push(layers[i++]);
-      if (F.visible && F.opacity > 0) drawGrouped(ctx, F, tx => mem.forEach(m => { if (!isShown(m)) return; const s = frameSrc(m, f); if (s) drawLayerTo(tx, m, s); }));
+      if (F.visible && F.opacity > 0) drawGrouped(ctx, F, tx => drawSeq(tx, mem, (c, m) => { if (!isShown(m)) return; const s = frameSrc(m, f); if (s) drawLayerTo(c, m, s); }));
       continue;
     }
-    if (isShown(l)) { const s = frameSrc(l, f); if (s) drawLayerTo(ctx, l, s); }
-    i++;
+    const run = [layers[i++]]; while (i < layers.length && !needsGroup(folderById(layers[i].folder))) run.push(layers[i++]);
+    drawSeq(ctx, run, (c, m) => { if (!isShown(m)) return; const s = frameSrc(m, f); if (s) drawLayerTo(c, m, s); });
   }
   ctx.globalAlpha = 1;
 }
@@ -5435,9 +5589,15 @@ function updatePinch() {
 }
 // Transformar lo seleccionado con los dedos
 function startXDrag(e, p) { mode = 'xdrag'; drawPointerId = e.pointerId; drawType = e.pointerType;
-  xdrag = { c0: toCanvas(p), M0: xform.M, q0: xform.quad ? xform.quad.map(q => q.slice()) : null, corner: quadCorner(p) }; }
+  xdrag = { c0: toCanvas(p), M0: xform.M, q0: xform.quad ? xform.quad.map(q => q.slice()) : null, corner: quadCorner(p),
+    m0: xform.mesh ? xform.mesh.map(q => q.slice()) : null, mi: meshPoint(p) }; }
 function moveXDrag(p) {
   const c = toCanvas(p);
+  if (xform.mesh && xdrag.m0) {
+    if (xdrag.mi >= 0) xform.mesh[xdrag.mi] = [c.x, c.y];
+    else { const dx = c.x - xdrag.c0.x, dy = c.y - xdrag.c0.y; xform.mesh = xdrag.m0.map(([a, b]) => [a + dx, b + dy]); }
+    return drawFloat();
+  }
   if (xform.quad && xdrag.q0) {
     if (xdrag.corner >= 0) {
       const q = xform.quad.map(v => v.slice()); q[xdrag.corner] = [c.x, c.y];
@@ -5466,6 +5626,7 @@ function updateXPinch() {
 }
 
 function beginPrimary(e, p, isTouch) {
+  if (curveStroke) return curveDown(e, p);
   if (perspEdit) return perspDown(e, p);
   if (animMode === 'rig' || (animMode === 'anim' && settings.tool === 'pose')) return animDown(e, p);
   if (xform) return startXDrag(e, p);
@@ -5531,6 +5692,7 @@ function onMove(e) {
   else if (mode === 'comic' && e.pointerId === drawPointerId) comicMove(p);
   else if (mode === 'persp' && e.pointerId === drawPointerId) perspMove(p);
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) moveXDrag(p);
+  else if (mode === 'curveh' && e.pointerId === drawPointerId) curveMove(p);
   else if (mode === 'adrag' && e.pointerId === drawPointerId) moveAdrag(toCanvas(p));
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) moveHandle(toCanvas(p));
   else if (mode === 'pan' && panState && e.pointerId === panState.id) {
@@ -5551,6 +5713,7 @@ function onUp(e) {
   else if (mode === 'comic' && e.pointerId === drawPointerId) comicUp(e.type === 'pointercancel');
   else if (mode === 'persp' && e.pointerId === drawPointerId) perspUp();
   else if (mode === 'xdrag' && e.pointerId === drawPointerId) { mode = null; xdrag = null; }
+  else if (mode === 'curveh' && e.pointerId === drawPointerId) { mode = null; curveDrag = null; }
   else if (mode === 'adrag' && e.pointerId === drawPointerId) { mode = null; endAdrag(); }
   else if (mode === 'rhandle' && e.pointerId === drawPointerId) { mode = null; endHandle(); }
   else if (mode === 'pan' && panState && e.pointerId === panState.id) { mode = null; viewport.style.cursor = settings.tool === 'pan' ? 'grab' : 'crosshair'; }
@@ -5730,6 +5893,7 @@ const panels = { brush: $('brush-panel'), layers: $('layers-panel'), menu: $('me
 
 function setTool(t) {
   if (xform) commitTransform();
+  if (curveStroke) commitCurve();
   if (pixelMode && BRUSH_FAMILY.includes(t) && t !== 'brush') t = 'brush';
   if (!pixelMode && PIX_TOOLS.includes(t)) t = settings.brushType || 'brush';
   if (t === 'pose' && animMode !== 'anim') t = settings.brushType || 'brush';
@@ -5746,18 +5910,21 @@ function setTool(t) {
   viewport.style.cursor = t === 'pan' ? 'grab' : 'crosshair';
   if (t !== 'picker') saveSettings();
   updateBars(); updateQuick(); renderBrushTypes(); if (animMode) updateDock();
+  if (typeof updateShapeUI === 'function') updateShapeUI();
 }
 function updateBars() {
   const selTool = settings.tool === 'select';
   const show = animMode !== 'rig' && (!!xform || !!selection || selTool);
   $('xbar').hidden = !xform || animMode === 'rig';
+  $('curvebar').hidden = !curveStroke;
   $('xa-persp').classList.toggle('on', !!(xform && xform.quad));
+  $('xa-mesh').classList.toggle('on', !!(xform && xform.mesh)); $('xa-mesh').hidden = pixelMode;
   $('selbar').hidden = !show || !!xform;
   document.querySelectorAll('[data-selmode]').forEach(b => { b.hidden = !selTool; b.classList.toggle('on', b.dataset.selmode === settings.selMode); });
   $('sel-modesep').hidden = !selTool;
   $('sel-hint').hidden = !!selection;
   document.querySelectorAll('[data-sa]').forEach(b => b.hidden = !selection);
-  document.body.classList.toggle('has-bar', show);
+  document.body.classList.toggle('has-bar', show || !!curveStroke);
   if (show || perspEdit) $('comicbar').hidden = true; else updateComicBar();
   if (perspEdit) { $('selbar').hidden = true; document.body.classList.add('has-bar'); }
   renderComic();
@@ -5908,6 +6075,7 @@ function showHelp() {
     <li><b>🖌️ Pincel:</b> tocalo otra vez para elegir el tipo (pluma, aerógrafo, carbonilla, mis pinceles, difuminar, degradado).</li>
     <li>Las barritas de la izquierda cambian el <b>tamaño</b> (arriba, en px) y la <b>opacidad</b> (abajo, en %). El circulito del medio abre todas las opciones.</li>
     <li><b>📚 Capas, lo nuevo:</b> <b>🌗 Fusión</b> mezcla la capa con lo de abajo (Multiplicar para sombras, Trama y Añadir para luces, Superponer, Color…). <b>▦ Bloq. alfa</b> hace que el pincel pinte solo encima de lo ya dibujado en esa capa (para sombrear sin salirte). <b>🎭 Máscara</b> oculta sin borrar: el pincel oculta, el borrador vuelve a mostrar; tocá la miniatura negra o la del dibujo para elegir qué pintás.</li>
+    <li><b>📐 Formas y curvas:</b> en 🖌️ Pincel › <b>Dibujar como</b> elegís línea, rectángulo, elipse o <b>curva</b> (se dobla con dos manijas y se confirma con ✓). Al <b>mover una selección</b> están 🕸️ <b>Malla</b> para doblar el dibujo y ⇅ espejo vertical. En 📐 (arriba a la derecha) hay <b>cuadrícula</b> y <b>regla</b> con imán.</li>
     <li><b>● Color:</b> círculo cromático, paletas (también retro para pixel art), mezclador y transiciones.</li>
     <li><b>👾 Pixel art:</b> en 🏠 Mis proyectos → Pixel art. Lápiz de píxeles, cuadrícula, simetría y exportación agrandada.</li>
     <li><b>🎬 Cuadro a cuadro:</b> cada cuadro tiene su dibujo; <b>＋ Cuadro</b> agrega el siguiente y la <b>🧅 cebolla</b> muestra lo anterior en rojo y lo siguiente en verde.</li>
@@ -6053,6 +6221,11 @@ function quickShapeWatch(s, p) {
 function shapePts(sh) {
   const out = [], add = (x, y) => out.push({ x, y, p: 1, v: 1 });
   if (sh.type === 'line') { const L = Math.hypot(sh.b.x - sh.a.x, sh.b.y - sh.a.y), n = Math.max(2, Math.ceil(L / 3)); for (let i = 0; i <= n; i++) add(sh.a.x + (sh.b.x - sh.a.x) * i / n, sh.a.y + (sh.b.y - sh.a.y) * i / n); }
+  else if (sh.type === 'curve') {
+    const { a, b, c1, c2 } = sh, L = Math.hypot(c1.x - a.x, c1.y - a.y) + Math.hypot(c2.x - c1.x, c2.y - c1.y) + Math.hypot(b.x - c2.x, b.y - c2.y), n = Math.max(8, Math.min(600, Math.ceil(L / 3)));
+    for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t, k0 = u * u * u, k1 = 3 * u * u * t, k2 = 3 * u * t * t, k3 = t * t * t;
+      add(k0 * a.x + k1 * c1.x + k2 * c2.x + k3 * b.x, k0 * a.y + k1 * c1.y + k2 * c2.y + k3 * b.y); }
+  }
   else if (sh.type === 'ellipse') { const n = 120; for (let i = 0; i <= n; i++) { const t = sh.t0 + i / n * Math.PI * 2; add(sh.cx + Math.cos(t) * sh.rx, sh.cy + Math.sin(t) * sh.ry); } }
   else { const c = [[sh.x0, sh.y0], [sh.x1, sh.y0], [sh.x1, sh.y1], [sh.x0, sh.y1], [sh.x0, sh.y0]];
     for (let k = 0; k < 4; k++) { const [ax, ay] = c[k], [bx, by] = c[k + 1], L = Math.hypot(bx - ax, by - ay), n = Math.max(2, Math.ceil(L / 3)); for (let i = k ? 1 : 0; i <= n; i++) add(ax + (bx - ax) * i / n, ay + (by - ay) * i / n); } }
@@ -6084,6 +6257,61 @@ function tryQuickShape(s) {
   }
   applyShape(s);
   toast(s.shape.type === 'line' ? '📏 Línea recta · mové el dedo para ajustarla' : s.shape.type === 'rect' ? '▭ Rectángulo' : '◯ ' + (s.shape.rx === s.shape.ry ? 'Círculo' : 'Elipse'), 1400);
+}
+// Formas elegidas en el panel del pincel: el trazo sale como línea, rectángulo, elipse o curva
+const SHAPE_NAMES = { line: '╱ Línea', rect: '▭ Rectángulo', ellipse: '◯ Elipse', curve: '∿ Curva' };
+function setShapeMode(m) {
+  settings.shapeMode = m; saveSettings(); updateShapeUI();
+  if (m !== 'free') toast(`${SHAPE_NAMES[m]}: arrastrá de una punta a la otra` + (m === 'curve' ? '; después doblala con las manijas' : ''), 2600);
+}
+function updateShapeUI() {
+  const m = settings.shapeMode || 'free';
+  document.querySelectorAll('[data-shp]').forEach(b => b.classList.toggle('on', b.dataset.shp === m));
+  let chip = $('shape-chip');
+  if (!chip) { chip = document.createElement('button'); chip.id = 'shape-chip'; chip.onclick = () => setShapeMode('free'); $('stage').appendChild(chip); }
+  chip.hidden = m === 'free' || pixelMode || !QS_TOOLS.includes(settings.tool);
+  chip.textContent = (SHAPE_NAMES[m] || '') + '  ·  tocá para volver a libre';
+}
+function forceShapeMove(s, c) {
+  const a = s.a0; if (!s.shape && Math.hypot(c.x - a.x, c.y - a.y) * viewScale() < 3) return;
+  const t = s.force;
+  if (t === 'line') s.shape = { type: 'line', a, b: { x: c.x, y: c.y } };
+  else if (t === 'rect') s.shape = { type: 'rect', x0: Math.min(a.x, c.x), y0: Math.min(a.y, c.y), x1: Math.max(a.x, c.x), y1: Math.max(a.y, c.y) };
+  else if (t === 'ellipse') s.shape = { type: 'ellipse', cx: (a.x + c.x) / 2, cy: (a.y + c.y) / 2, rx: Math.abs(c.x - a.x) / 2, ry: Math.abs(c.y - a.y) / 2, t0: -Math.PI / 2 };
+  else s.shape = { type: 'curve', a, b: { x: c.x, y: c.y }, c1: { x: a.x + (c.x - a.x) / 3, y: a.y + (c.y - a.y) / 3 }, c2: { x: a.x + (c.x - a.x) * 2 / 3, y: a.y + (c.y - a.y) * 2 / 3 } };
+  applyShape(s);
+}
+// ---- Curva Bézier: al soltar quedan cuatro puntos para doblarla y moverla ----
+let curveStroke = null, curveDrag = null;
+const curveUi = document.createElementNS(SVGNS, 'svg'); curveUi.id = 'curve-ui'; viewport.appendChild(curveUi);
+function updateCurveUi() {
+  const s = curveStroke;
+  if (!s || !s.shape) { if (curveUi.firstChild) curveUi.innerHTML = ''; return; }
+  const T = q => { const r = view.transformPoint(q); return [r.x.toFixed(1), r.y.toFixed(1)]; }, sh = s.shape;
+  const [ax, ay] = T(sh.a), [bx, by] = T(sh.b), [px, py] = T(sh.c1), [qx, qy] = T(sh.c2);
+  curveUi.innerHTML = `<g stroke="#ffd23f" stroke-width="2" stroke-dasharray="6 5"><line x1="${ax}" y1="${ay}" x2="${px}" y2="${py}"/><line x1="${bx}" y1="${by}" x2="${qx}" y2="${qy}"/></g>`
+    + [[ax, ay, 12, '#fff'], [bx, by, 12, '#fff'], [px, py, 15, '#ffd23f'], [qx, qy, 15, '#ffd23f']].map(([x, y, r, f]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${f}" fill-opacity=".92" stroke="#111" stroke-width="2"/>`).join('');
+}
+function curveDown(e, p) {
+  const sh = curveStroke.shape; let best = null, bd = 36;
+  for (const k of ['c1', 'c2', 'a', 'b']) { const q = view.transformPoint(sh[k]), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = k; } }
+  if (!best) { mode = 'tap'; return; }
+  mode = 'curveh'; drawPointerId = e.pointerId; drawType = e.pointerType; curveDrag = best;
+}
+function curveMove(p) {
+  const s = curveStroke; if (!s || !curveDrag) return;
+  const c = toCanvas(p); s.shape[curveDrag] = { x: c.x, y: c.y };
+  applyShape(s); updateCurveUi();
+}
+function commitCurve() {
+  const s = curveStroke; if (!s) return;
+  curveStroke = null; curveDrag = null; s.curveDone = true; updateCurveUi(); updateBars();
+  if (stroke === s) endStroke();
+}
+function cancelCurve() {
+  const s = curveStroke; if (!s) return;
+  curveStroke = null; curveDrag = null; updateCurveUi(); updateBars();
+  if (stroke === s) cancelStroke();
 }
 function shapeFollow(s, c) {   // con la línea recta armada, el dedo mueve la punta final
   if (s.shape.type !== 'line') return;
@@ -6840,6 +7068,8 @@ function setupUI() {
   });
   $('translen').addEventListener('input', e => { settings.transLen = +e.target.value; $('translen-val').textContent = e.target.value + ' px'; saveSettings(); });
   $('brush-new').onclick = () => openBrushEditor();
+  document.querySelectorAll('[data-shp]').forEach(b => b.onclick = () => setShapeMode(b.dataset.shp));
+  $('cv-done').onclick = commitCurve; $('cv-cancel').onclick = cancelCurve;
   $('blib-open').onclick = openBrushLibrary; $('blib-close').onclick = closeBrushLibrary;
   $('blib').addEventListener('click', e => { if (e.target.id === 'blib') closeBrushLibrary(); });
   $('brush-edit').onclick = () => { const B = currentBrush(); if (B && !B.builtin) openBrushEditor(B); };
@@ -6862,10 +7092,16 @@ function setupUI() {
   // espejo y perspectiva
   $('btn-flip2').onclick = flipView;
   $('btn-persp').onclick = () => perspEdit ? closePerspBar() : openPerspBar();
-  document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { setPerspMode(+b.dataset.pm); if (+b.dataset.pm === 0) { closePerspBar(); toast('Guía de perspectiva apagada', 1400); } });
+  document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { setPerspMode(+b.dataset.pm);
+    if (+b.dataset.pm === 4) toast('▦ Cuadrícula: con 🧲 los trazos salen horizontales o verticales. Cambiá el tamaño con − y ＋', 3400);
+    if (+b.dataset.pm === 5) toast('📏 Regla: arrastrá sus puntas (o el medio para moverla). Con 🧲 los trazos van paralelos, y encima de ella si empezás cerca', 4000); if (+b.dataset.pm === 0) { closePerspBar(); toast('Guía de perspectiva apagada', 1400); } });
   $('pg-snap').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P); P.snap = !P.snap; perspChanged(before);
     toast(P.snap ? '🧲 Los trazos siguen las líneas hacia los puntos de fuga' : 'Trazos libres (la guía queda de referencia)', 2600); };
-  $('pg-reset').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P); const d = perspDefaults(P.mode); P.vps = d.concat(perspDefaults(3).slice(d.length)); perspChanged(before); };
+  $('pg-reset').onclick = () => { const P = scene.persp; if (!P || !P.mode) return; const before = JSON.stringify(P);
+    if (P.mode === 4) P.grid = null; else if (P.mode === 5) P.ruler = null; else { const d = perspDefaults(P.mode); P.vps = d.concat(perspDefaults(3).slice(d.length)); }
+    perspChanged(before); };
+  $('pg-gminus').onclick = () => { const P = scene.persp; if (!P || P.mode !== 4) return; const before = JSON.stringify(P); P.grid = Math.max(4, Math.round(gridSize(P) / 1.5)); perspChanged(before); };
+  $('pg-gplus').onclick = () => { const P = scene.persp; if (!P || P.mode !== 4) return; const before = JSON.stringify(P); P.grid = Math.min(Math.max(W, H), Math.round(gridSize(P) * 1.5)); perspChanged(before); };
   $('pg-done').onclick = closePerspBar;
   // simetría, formas rápidas, relleno de formas pixel
   document.querySelectorAll('[data-sym]').forEach(b => b.onclick = () => setSym(b.dataset.sym));
@@ -6888,7 +7124,7 @@ function setupUI() {
   document.querySelectorAll('[data-sa]').forEach(b => b.onclick = () => selActs[b.dataset.sa]());
   const xActs = { rot: () => xformAround(m => m.rotate(90)), flip: () => xformAround(m => m.scale(-1, 1)),
     smaller: () => xformAround(m => m.scale(0.9, 0.9)), bigger: () => xformAround(m => m.scale(1.1, 1.1)),
-    persp: togglePerspective,
+    persp: togglePerspective, mesh: toggleMesh, flipv: () => xformAround(m => m.scale(1, -1)),
     cancel: () => { cancelTransform(); updateBars(); }, ok: () => { commitTransform(); updateBars(); } };
   document.querySelectorAll('[data-xa]').forEach(b => b.onclick = () => xActs[b.dataset.xa]());
 
