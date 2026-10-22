@@ -49,7 +49,5 @@ jobs:
           gh release delete pc-ultima-version --yes --cleanup-tag || true
           gh release create pc-ultima-version desktop/dist/Tokers-Portable.exe desktop/dist/Tokers-PC-carpeta.zip \
             --title "Toker's para PC — versión 1.${{ github.run_number }}" \
-            --notes "**Tokers-Portable.exe**: un solo archivo, se abre con doble clic, sin instalar. Los proyectos se guardan en la carpeta «Tokers-datos» al lado del .exe (sirve para llevar en un pendrive).
-
-**Tokers-PC-carpeta.zip**: lo mismo en una carpeta (abre más rápido). Descomprimila y abrí «Toker's.exe»." \
+            --notes "Tokers-Portable.exe: un solo archivo, se abre con doble clic, sin instalar; los proyectos quedan en la carpeta Tokers-datos al lado del .exe (sirve para pendrive). Tokers-PC-carpeta.zip: lo mismo en carpeta, abre más rápido." \
             --latest=false
