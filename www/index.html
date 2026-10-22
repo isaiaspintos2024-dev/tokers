@@ -843,6 +843,8 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button class="mitem" data-menu="help"><span>❔</span>Cómo se usa</button>
       <button class="mitem" data-menu="intro"><span>🎬</span><span id="mi-intro" style="width:auto;font-size:15px;text-align:left">Video al abrir: sí</span></button>
       <button class="mitem" data-menu="install" id="mi-install"><span>📲</span>Instalar como app</button>
+      <button class="mitem" data-menu="pcfolder" id="mi-pcfolder" hidden><span>📂</span>Abrir la carpeta Tokers-datos</button>
+      <button class="mitem" data-menu="pcfull" id="mi-pcfull" hidden><span>⛶</span>Pantalla completa (F11)</button>
     </div>
   </div>
 </div>
@@ -974,6 +976,8 @@ const isTouchDevice = matchMedia('(pointer: coarse)').matches;
 // ¿Estamos dentro de la app Android (APK hecha con Capacitor)?
 const CAP = window.Capacitor;
 const NATIVE = !!(CAP && CAP.Plugins && CAP.Plugins.Filesystem && CAP.Plugins.Share);
+// ¿Estamos en el programa para PC (Windows)?
+const PC = window.TOKERS_PC || null;
 
 /* ---------------- Ajustes (se recuerdan entre sesiones) ---------------- */
 const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:0.3, pressure:true,
@@ -6332,6 +6336,10 @@ async function loadProjectDoc(p) {
 }
 // Copia de seguridad en Documentos › Tokers › Proyectos (solo en el APK)
 async function backupToPhone(p) {
+  if (PC && p && p.changed) {   // PC: copia del proyecto en Tokers-datos › Proyectos
+    try { await PC.saveProjectCopy(p.name, await fileBlob(await projectFileData()).text()); p.changed = false; saveIndex(); } catch (e) {}
+    return;
+  }
   if (!NATIVE || !p || !p.changed) return;
   try { await nativeWrite(fileBlob(await projectFileData()), `${safeName(p.name)}.tokers`, 'application/json'); p.changed = false; saveIndex(); } catch (e) {}
 }
@@ -6541,7 +6549,8 @@ function setupHome() {
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => newProject(b.dataset.new));
   $('home-open').onclick = () => $('file-project').click();
   $('home-help').onclick = showHelp;
-  $('home-note').textContent = NATIVE ? 'Todo se guarda solo. Además, al salir de un proyecto queda una copia en Documentos › Tokers › Proyectos, y lo que exportás va a Documentos › Tokers.'
+  $('home-note').textContent = PC ? 'Todo se guarda solo en la carpeta «Tokers-datos», al lado del programa: si lo llevás en un pendrive, tus proyectos viajan con él. Al salir de un proyecto queda una copia en Tokers-datos › Proyectos. F11: pantalla completa.'
+    : NATIVE ? 'Todo se guarda solo. Además, al salir de un proyecto queda una copia en Documentos › Tokers › Proyectos, y lo que exportás va a Documentos › Tokers.'
     : 'Todo se guarda solo en este teléfono. Para pasar un proyecto a otro lado: ⋮ → Guardar archivo.';
   $('home-warn').hidden = !IN_WEBVIEW;
 }
@@ -6588,7 +6597,8 @@ function setupUI() {
   showTab(settings.tab || 'color');
   updateIntroLabel();
   setupAnimUI();
-  if (isStandalone || NATIVE) $('mi-install').hidden = true;
+  if (isStandalone || NATIVE || PC) $('mi-install').hidden = true;
+  if (PC) { $('mi-pcfolder').hidden = false; $('mi-pcfull').hidden = false; document.body.classList.add('pc'); }
   if (NATIVE && CAP.Plugins.App) {
     // Botón "atrás" de Android: cierra diálogos, paneles y selecciones; si no hay nada abierto, minimiza
     CAP.Plugins.App.addListener('backButton', () => {
@@ -6741,6 +6751,7 @@ function setupUI() {
 
   const menu = { home: goHome, newwork: newWork, comic: () => { if (animMode) setAnimMode(null); document.body.classList.add('has-comic'); setTool('comic'); toast('💬 Agregá viñetas y globos con la barra de abajo', 2600); }, import: () => $('file-image').click(), export: exportPNG, save: saveProjectFile,
     open: () => $('file-project').click(), install: installApp, help: showHelp,
+    pcfolder: () => PC && PC.openDataFolder(), pcfull: () => PC && PC.toggleFullScreen(),
     intro: () => { settings.introVideo = !settings.introVideo; saveSettings(); updateIntroLabel();
       toast(settings.introVideo ? 'El video se va a ver al abrir la app' : 'La app va a abrir solo con el logo'); },
     lib: openLibrary, size: resizeCanvasDialog, fit: fitView, flip: flipView, video: exportVideo, sprites: exportSprites, gif: exportGIF,

@@ -1,0 +1,55 @@
+name: Compilar Toker's para PC (Windows, portable)
+
+# Se ejecuta solo cuando cambia la app o el programa de PC, o a mano desde la pestaña "Actions"
+on:
+  push:
+    branches: [main, master]
+    paths: ['www/**', 'desktop/**', '.github/workflows/compilar-pc.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pc:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v6
+
+      - name: Preparar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Copiar la app dentro del programa
+        run: |
+          rm -rf desktop/www && cp -r www desktop/www && rm -f desktop/www/sw.js
+
+      - name: Instalar Electron
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Armar el .exe portable y la versión en carpeta
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm version --no-git-tag-version --allow-same-version "1.${{ github.run_number }}.0"
+          npx electron-builder --win portable zip --x64 --publish never
+          ls -la dist
+
+      - name: Publicar para descargar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete pc-ultima-version --yes --cleanup-tag || true
+          gh release create pc-ultima-version desktop/dist/Tokers-Portable.exe desktop/dist/Tokers-PC-carpeta.zip \
+            --title "Toker's para PC — versión 1.${{ github.run_number }}" \
+            --notes "**Tokers-Portable.exe**: un solo archivo, se abre con doble clic, sin instalar. Los proyectos se guardan en la carpeta «Tokers-datos» al lado del .exe (sirve para llevar en un pendrive).
+
+**Tokers-PC-carpeta.zip**: lo mismo en una carpeta (abre más rápido). Descomprimila y abrí «Toker's.exe»." \
+            --latest=false
