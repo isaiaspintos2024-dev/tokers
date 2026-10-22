@@ -219,6 +219,9 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 .lthumb{width:52px;height:52px;flex:none;border-radius:8px;overflow:hidden;
   background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0) 0 0/12px 12px}
 .lthumb canvas{width:100%;height:100%;display:block}
+.lthumb.mk{width:40px;height:40px;margin-left:-4px;border:2px solid transparent;background:#000}
+.lthumb.edit{border:2px solid var(--accent2);box-shadow:0 0 0 2px #0006}
+.lrow .lthumb.pix-edit{border:2px solid var(--accent2)}
 .lrow.off .lthumb{opacity:.3}
 .llock{opacity:.45}
 .frow{background:#172219;border-style:solid}
@@ -805,6 +808,9 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button data-act="clip" id="act-clip"><span>🔗</span>Recorte</button>
         <button data-act="folder"><span>📁</span>Carpeta</button>
         <button data-act="fx" id="act-fx"><span>✨</span>Efectos</button>
+        <button data-act="blend" id="act-blend"><span>🌗</span>Fusión</button>
+        <button data-act="alock" id="act-alock"><span>▦</span>Bloq. alfa</button>
+        <button data-act="mask" id="act-mask"><span>🎭</span>Máscara</button>
         <button data-act="up"><span>⬆️</span>Subir</button>
         <button data-act="down"><span>⬇️</span>Bajar</button>
         <button data-act="dup"><span>⧉</span>Duplicar</button>
@@ -902,11 +908,11 @@ function paintEl(x, el, k, dim) {
   let a = el.style.opacity === '' ? 1 : +el.style.opacity;
   if (dim && el.classList.contains('layer')) a = 0.3;
   if (!(a > 0)) return;
-  x.globalAlpha = Math.min(1, a);
+  x.globalAlpha = Math.min(1, a); x.globalCompositeOperation = el.dataset.blend || 'source-over';
   const f = el.style.filter; x.filter = f && f !== 'none' ? scaleFilter(f, k) : 'none';
   x.imageSmoothingEnabled = el === checker ? false : !pixelMode;
   x.drawImage(el, 0, 0, W, H);
-  x.globalAlpha = 1; x.filter = 'none';
+  x.globalAlpha = 1; x.filter = 'none'; x.globalCompositeOperation = 'source-over';
 }
 function paintEls(x, els, k) {
   const dim = wrapper.classList.contains('rigdim');
@@ -944,9 +950,9 @@ function drawScreen() {
       const bx = below.getContext('2d'), ax = above.getContext('2d');
       bx.setTransform(1, 0, 0, 1, 0, 0); bx.clearRect(0, 0, cw, ch); ax.setTransform(1, 0, 0, 1, 0, 0); ax.clearRect(0, 0, cw, ch);
       bx.setTransform(M); paintPage(bx, dpr); paintEls(bx, els.filter(e => zOf(e) < za || (bake && zOf(e) === za)), k);
-      const up = els.filter(e => zOf(e) > za + 1);
-      ax.setTransform(M); paintEls(ax, up, k);
-      scrCache = { key, w: cw, h: ch, below, above, hasAbove: up.length > 0 };
+      const up = els.filter(e => zOf(e) > za + 1), liveUp = up.some(e => e.dataset.blend);
+      if (!liveUp) { ax.setTransform(M); paintEls(ax, up, k); }
+      scrCache = { key, w: cw, h: ch, below, above, hasAbove: up.length > 0 && !liveUp, liveUp };
     }
     x.drawImage(scrCache.below, 0, 0);
     x.setTransform(M);
@@ -955,17 +961,30 @@ function drawScreen() {
       if (el === strokeCanvas && !symStroke(stroke)) {   // solo la parte donde ya hay trazo
         const b = clampBox(stroke.bbox); if (!b) continue;
         let a = el.style.opacity === '' ? 1 : +el.style.opacity; if (!(a > 0)) continue;
-        x.globalAlpha = Math.min(1, a); x.imageSmoothingEnabled = !pixelMode;
-        x.drawImage(el, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); x.globalAlpha = 1;
+        x.globalAlpha = Math.min(1, a); x.imageSmoothingEnabled = !pixelMode; x.globalCompositeOperation = el.dataset.blend || 'source-over';
+        x.drawImage(el, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
       } else paintEl(x, el, k, wrapper.classList.contains('rigdim'));
     }
+    if (scrCache.liveUp) paintEls(x, els.filter(e => zOf(e) > za + 1), k);
     x.setTransform(1, 0, 0, 1, 0, 0); if (scrCache.hasAbove) x.drawImage(scrCache.above, 0, 0);
     return;
   }
   if (scrCache) scrCache.key = null;
+  if ((mode === 'pan' || mode === 'pinch') && !playing && els.length > 3) {
+    // mover o acercar la vista no cambia el dibujo: se combina todo una vez y después se mueve esa sola imagen
+    if (!flatCache || flatCache.key !== gestureKey || flatCache.c.width !== W || flatCache.c.height !== H) {
+      const c = flatCache && flatCache.c.width === W && flatCache.c.height === H ? flatCache.c : makeCanvas(), fx = c.getContext('2d');
+      fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, W, H); paintEls(fx, els, 1);
+      flatCache = { key: gestureKey, c };
+    }
+    x.setTransform(M); paintPage(x, dpr); x.imageSmoothingEnabled = !pixelMode; x.drawImage(flatCache.c, 0, 0, W, H);
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    return;
+  }
   x.setTransform(M); paintPage(x, dpr); paintEls(x, els, k);
   x.setTransform(1, 0, 0, 1, 0, 0);
 }
+let flatCache = null, gestureKey = 0;
 
 // Límites según la memoria del dispositivo (cada capa de 2048 px ocupa ~16 MB)
 const MEM = navigator.deviceMemory || 4;
@@ -1111,7 +1130,8 @@ function createLayer(name, fillWhite = false) {
   if (fillWhite) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); }
   const thumb = makeCanvas(64, 64);
   return { id: layerSeq++, name, canvas, ctx, thumb, thumbCtx: thumb.getContext('2d'),
-    opacity: 1, visible: true, clip: false, disp: null, dispCtx: null, dirty: true, blob: null, folder: undefined, fx: null };
+    opacity: 1, visible: true, clip: false, disp: null, dispCtx: null, dirty: true, blob: null, folder: undefined, fx: null,
+    blend: 'normal', alock: false, mask: null, maskCtx: null, editMask: false, maskBlob: null, maskDirty: false };
 }
 function nextLayerName() {
   let n = 1; const names = new Set(layers.map(l => l.name));
@@ -1142,11 +1162,13 @@ function updateThumb(l) {
 /* ---- Capas de recorte (máscara de recorte): se ven solo donde hay dibujo en la capa base de abajo ---- */
 function baseOfIndex(i) { for (let j = i - 1; j >= 0; j--) if (!layers[j].clip) return layers[j]; return null; }
 function clipBase(l) { const i = layers.indexOf(l); return (l.clip && i > 0) ? baseOfIndex(i) : null; }
-const visualCanvas = l => (clipBase(l) && l.disp) ? l.disp : l.canvas;
+// La capa necesita una copia para mostrarse si es de recorte o si tiene máscara
+const needsDisp = l => !!(clipBase(l) || (l.mask && !l.anim));
+const visualCanvas = l => (needsDisp(l) && l.disp) ? l.disp : l.canvas;
 function isShown(l) { const b = clipBase(l), F = folderById(l.folder); return l.visible && l.opacity > 0 && (!b || b.visible) && (!F || (F.visible && F.opacity > 0)); }
 function renderClip(l, box) {
   markScreen();
-  const base = clipBase(l); if (!base) return;
+  const base = clipBase(l); if (!base && !(l.mask && !l.anim)) return;
   let created = false;
   if (!l.disp || l.disp.width !== W || l.disp.height !== H) {
     if (l.disp) l.disp.remove();
@@ -1158,20 +1180,43 @@ function renderClip(l, box) {
   else d.clearRect(0, 0, W, H);
   d.drawImage(l.canvas, 0, 0);
   if (box && stroke && stroke.layer === l && !stroke.direct) { d.globalAlpha = stroke.opacity; d.drawImage(strokeCanvas, 0, 0); d.globalAlpha = 1; }
-  d.globalCompositeOperation = 'destination-in'; d.drawImage(base.canvas, 0, 0);
+  d.globalCompositeOperation = 'destination-in';
+  if (l.mask && !l.anim) d.drawImage(l.mask, 0, 0);
+  if (base) d.drawImage(base.mask && !base.anim && base.disp ? base.disp : base.canvas, 0, 0);
   d.restore();
   if (created) applyLayerStyles();
 }
 function refreshClips() {
-  layers.forEach(l => { if (clipBase(l)) renderClip(l); else if (l.disp) { l.disp.remove(); l.disp = null; } });
+  layers.forEach(l => { if (needsDisp(l)) renderClip(l); else if (l.disp) { l.disp.remove(); l.disp = null; } });
 }
 function layerChanged(l) {
   markScreen();
+  if (l.isMask) {   // se pintó la máscara de una capa
+    const o = l.owner; o.maskDirty = true; updateMaskThumb(o); renderClip(o);
+    layers.forEach(x => { if (clipBase(x) === o) renderClip(x); });
+    scheduleSave(); return;
+  }
   l.dirty = true; updateThumb(l);
   if (l.anim) { cellDirty.add(l.canvas); const t = cellThumb.get(l.canvas); if (t) t.dirty = true; if (animMode) requestRender(); }
-  if (layers.some(x => x.clip)) layers.forEach(x => { if (clipBase(x) && (x === l || clipBase(x) === l)) renderClip(x); });
+  if (layers.some(x => x.clip || x.mask)) layers.forEach(x => { if (needsDisp(x) && (x === l || clipBase(x) === l)) renderClip(x); });
   scheduleSave();
 }
+// Miniatura de la máscara: blanco = se ve, negro = oculto
+function updateMaskThumb(l) {
+  if (!l.mask) return;
+  if (!l.mthumb) { l.mthumb = makeCanvas(64, 64); l.mthumb.className = 'mthumb'; }
+  const s = Math.min(64 / W, 64 / H), w = W * s, h = H * s, x = l.mthumb.getContext('2d');
+  x.globalCompositeOperation = 'source-over'; x.fillStyle = '#000'; x.fillRect(0, 0, 64, 64);
+  const t = makeCanvas(64, 64), tx = t.getContext('2d'); tx.drawImage(l.mask, (64 - w) / 2, (64 - h) / 2, w, h);
+  tx.globalCompositeOperation = 'source-in'; tx.fillStyle = '#fff'; tx.fillRect(0, 0, 64, 64); x.drawImage(t, 0, 0);
+}
+// Para pintar la máscara se usa un «doble» de la capa: el pincel y el deshacer funcionan igual
+function maskProxy(l) {
+  if (!l._mp) l._mp = { isMask: true, owner: l, anim: false, get canvas() { return l.mask; }, get ctx() { return l.maskCtx; },
+    get name() { return 'máscara de ' + l.name; }, get visible() { return l.visible; }, get locked() { return l.locked; }, get folder() { return l.folder; } };
+  return l._mp;
+}
+const paintTarget = l => (l && l.mask && l.editMask && !l.anim) ? maskProxy(l) : l;
 
 /* ---- Carpetas de capas y efectos ----
    Cada capa puede estar en una carpeta (l.folder = id). Las capas de una carpeta van siempre juntas.
@@ -1199,14 +1244,26 @@ const hasFx = fx => !!fxFilter(fx);
 function layerFilter(l) { const F = folderOf(l); return [fxFilter(l.fx), fxFilter(F && F.fx)].filter(Boolean).join(' ') || 'none'; }
 function effOpacity(l) { const F = folderOf(l); return l.opacity * (F ? F.opacity : 1); }
 function folderVisible(l) { const F = folderOf(l); return !F || F.visible; }
+// Modos de fusión: cómo se mezcla la capa con lo que tiene debajo (los trae incorporados el lienzo)
+const BLENDS = [['normal', 'Normal', 'Tapa lo de abajo'], ['multiply', 'Multiplicar', 'Oscurece: ideal para sombras y para pintar debajo de la línea'],
+  ['screen', 'Trama', 'Aclara: luces suaves'], ['overlay', 'Superponer', 'Sube el contraste: color y luz sobre el dibujo'],
+  ['soft-light', 'Luz suave', 'Como Superponer, más delicado'], ['hard-light', 'Luz fuerte', 'Como Superponer, más intenso'],
+  ['lighter', 'Añadir', 'Suma la luz: brillos, fuego, magia'], ['darken', 'Oscurecer', 'Se queda con el color más oscuro'],
+  ['lighten', 'Aclarar', 'Se queda con el color más claro'], ['difference', 'Diferencia', 'Resta los colores (efectos raros, comparar)'],
+  ['exclusion', 'Exclusión', 'Como Diferencia, más suave'], ['color-dodge', 'Sobreexponer', 'Aclara mucho y satura: brillos intensos'],
+  ['color-burn', 'Subexponer', 'Oscurece mucho y satura'], ['hue', 'Tono', 'Cambia solo el tono de lo de abajo'],
+  ['saturation', 'Saturación', 'Cambia solo la saturación'], ['color', 'Color', 'Pinta el color manteniendo la luz (colorear en blanco y negro)'],
+  ['luminosity', 'Luminosidad', 'Cambia solo la luz']];
+const blendOp = l => (l && l.blend && l.blend !== 'normal') ? l.blend : 'source-over';
+const blendName = b => (BLENDS.find(x => x[0] === (b || 'normal')) || BLENDS[0])[1];
 // Dibuja una capa con su opacidad y efectos (para exportar, miniaturas, video…)
 const ctxScale = ctx => { const T = ctx.getTransform(); return Math.hypot(T.a, T.b) || 1; };
-function drawLayerTo(ctx, l, src) {   // una capa con su opacidad y sus efectos (desenfoque y sombra ajustados a la escala)
-  ctx.globalAlpha = l.opacity;
+function drawLayerTo(ctx, l, src) {   // una capa con su opacidad, modo de fusión y efectos (desenfoque y sombra ajustados a la escala)
+  ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = blendOp(l);
   const flt = fxFilter(l.fx); if (flt) ctx.filter = scaleFilter(flt, ctxScale(ctx));
   ctx.drawImage(src, 0, 0, W, H);
   if (flt) ctx.filter = 'none';
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 }
 const needsGroup = F => !!(F && (F.opacity < 1 || hasFx(F.fx)));
 let groupTmp = null;
@@ -1402,11 +1459,11 @@ function applyLayerStyles() {
       else if (i === 0) { /* el papel de fondo se sigue viendo */ }
       else show = false;
     }
-    const el = (base && l.disp) ? l.disp : l.canvas;
+    const el = (needsDisp(l) && l.disp) ? l.disp : l.canvas;
     if (el !== l.canvas) l.canvas.style.display = 'none';
     else if (l.disp) l.disp.style.display = 'none';
     const fx = fxFilter(l.fx) || 'none';   // la opacidad y los efectos de la carpeta se aplican al grupo entero
-    el.dataset.fold = l.folder || '';
+    el.dataset.fold = l.folder || ''; el.dataset.blend = blendOp(l) === 'source-over' ? '' : blendOp(l);
     el.style.zIndex = i * 3 + 1; el.style.display = show ? '' : 'none'; el.style.opacity = op; el.style.filter = [fx === 'none' ? '' : fx, filt].join(' ').trim();
   });
   $('btn-onion').classList.toggle('on', onion);
@@ -1442,21 +1499,30 @@ function renderLayerPanel() {
     const clipped = !!clipBase(l);
     const row = document.createElement('div');
     row.className = 'lrow' + (i === activeIndex && !selFolder ? ' active' : '') + (l.visible ? '' : ' off') + (clipped ? ' clipped' : '') + (l.locked ? ' locked' : '') + (F ? ' infolder' : '');
-    const th = document.createElement('div'); th.className = 'lthumb'; th.appendChild(l.thumb);
+    const th = document.createElement('div'); th.className = 'lthumb' + (l.mask && !l.editMask && i === activeIndex ? ' pix-edit' : ''); th.appendChild(l.thumb);
+    let mth = null;
+    if (l.mask && !l.anim) {   // miniatura de la máscara: tocarla cambia entre pintar el dibujo y pintar la máscara
+      if (!l.mthumb) updateMaskThumb(l);
+      mth = document.createElement('div'); mth.className = 'lthumb mk' + (l.editMask ? ' edit' : ''); mth.appendChild(l.mthumb);
+      mth.title = l.editMask ? 'Pintando la máscara (tocá para volver al dibujo)' : 'Tocá para pintar la máscara';
+      mth.onclick = ev => { ev.stopPropagation(); selFolder = null; activeIndex = i; setMaskEdit(l, !l.editMask); };
+      th.onclick = ev => { if (l.editMask) { ev.stopPropagation(); selFolder = null; activeIndex = i; setMaskEdit(l, false); } };
+    }
     const info = document.createElement('div'); info.className = 'linfo';
     const nm = document.createElement('div'); nm.className = 'lname'; nm.textContent = l.name;
     const meta = document.createElement('div'); meta.className = 'lmeta';
-    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '') + (hasFx(l.fx) ? ' · ✨' : '') + (l.locked ? ' · 🔒' : '');
+    meta.textContent = (l.anim ? `🎞️ ${l.cells.size} dibujo${l.cells.size === 1 ? '' : 's'} · ` : '') + (l.visible ? `Opacidad ${Math.round(l.opacity * 100)}%` : 'Oculta') + (clipped ? ' · recorte' : '') + (hasFx(l.fx) ? ' · ✨' : '') + (l.locked ? ' · 🔒' : '')
+      + (l.blend && l.blend !== 'normal' ? ' · ' + blendName(l.blend) : '') + (l.alock ? ' · ▦ alfa' : '') + (l.mask ? (l.editMask ? ' · 🎭 editando' : ' · 🎭') : '');
     info.append(nm, meta);
     const lock = iconBtn(l.locked ? '🔒' : '🔓', l.locked ? 'Desbloquear' : 'Bloquear (para no pintarla sin querer)', () => {
       l.locked = !l.locked; refreshLayers(); scheduleSave();
       toast(l.locked ? `🔒 «${l.name}» bloqueada: no se puede pintar ni borrar` : `🔓 «${l.name}» desbloqueada`, 1800); }, 'llock');
     const eye = iconBtn(l.visible ? '👁️' : '🙈', l.visible ? 'Ocultar' : 'Mostrar', () => { l.visible = !l.visible; refreshLayers(); scheduleSave(); });
-    row.append(th, info, lock, eye);
+    if (mth) row.append(th, mth, info, lock, eye); else row.append(th, info, lock, eye);
     row.onclick = () => { if (xform) commitTransform(); selFolder = null; activeIndex = i; refreshLayers(); };
     list.appendChild(row);
   }
-  $('layer-count').textContent = `${layers.length}/${MAX_LAYERS}`;
+  $('layer-count').textContent = `${layers.length}/${maxLayers()}`;
   const a = layers[activeIndex], SF = folderById(selFolder);
   const op = SF ? SF.opacity : a.opacity;
   $('lop-range').value = Math.round(op * 100);
@@ -1466,6 +1532,9 @@ function renderLayerPanel() {
   $('act-anim').classList.toggle('on', !SF && !!a.anim);
   $('act-anim').lastChild.textContent = a.anim ? 'Fija' : 'Animar';
   $('act-fx').classList.toggle('on', hasFx(SF ? SF.fx : a.fx));
+  $('act-blend').classList.toggle('on', !SF && !!a.blend && a.blend !== 'normal');
+  $('act-alock').classList.toggle('on', !SF && !!a.alock);
+  $('act-mask').classList.toggle('on', !SF && !!a.mask);
   $('layers-panel').classList.toggle('folder-sel', !!SF);
 }
 function refreshLayers() {
@@ -1584,8 +1653,15 @@ function deleteEntry(layer, idx) {
 }
 
 /* ---------------- Acciones de capa ---------------- */
+// Cuántas capas entran sin quedarse sin memoria: depende de la memoria del equipo y del tamaño de la hoja
+function maxLayers() {
+  const budget = MEM <= 2 ? 180 : MEM <= 4 ? 360 : 640, per = W * H * 4 / 1048576;
+  return clamp(Math.floor(budget / per), 4, MAX_LAYERS);
+}
 function canAddLayer() {
-  if (layers.length >= MAX_LAYERS) { toast(`Máximo ${MAX_LAYERS} capas en este dispositivo`); return false; }
+  const m = maxLayers();
+  if (layers.length >= m) { toast(m < MAX_LAYERS ? `Con una hoja de ${W} × ${H} px entran hasta ${m} capas en este equipo (cada capa usa memoria). Combiná o borrá alguna.` : `Máximo ${m} capas en este dispositivo`, 4200); return false; }
+  if (layers.length === m - 2) toast(`Te quedan 2 capas antes del máximo (${m}) para este tamaño de hoja`, 2600);
   return true;
 }
 // Lugar para una capa nueva arriba de la activa: después de las capas de recorte que dependen de ella
@@ -1624,6 +1700,8 @@ function actDuplicate() {
     for (const [k, c] of src.cells) { const n = newCellCanvas(); n.getContext('2d').drawImage(c, 0, 0); l.cells.set(k, n); cellDirty.add(n); }
   } else l.ctx.drawImage(src.canvas, 0, 0);
   l.opacity = src.opacity; l.visible = src.visible; l.clip = src.clip; l.folder = src.folder || null; l.fx = src.fx ? { ...src.fx } : null;
+  l.blend = src.blend || 'normal'; l.alock = !!src.alock;
+  if (src.mask) { const m = makeCanvas(); m.getContext('2d').drawImage(src.mask, 0, 0); l.mask = m; l.maskCtx = m.getContext('2d'); l.maskDirty = true; updateMaskThumb(l); }
   const idx = activeIndex + 1; insertLayer(l, idx); activeIndex = idx; refreshLayers();
   pushHistory(addEntry(l, idx)); layerChanged(l);
 }
@@ -1633,12 +1711,13 @@ function actMerge() {
   if (isLocked(down) || isLocked(up)) return;
   if (!up.visible || !down.visible) return toast('Mostrá las dos capas antes de combinarlas');
   if (up.anim || down.anim) return toast('Las capas animadas no se pueden combinar');
+  if (down.mask) return toast(`«${down.name}» tiene máscara: aplicala o quitala antes de combinar (🎭 Máscara)`, 3200);
   const snap = snapshot(down);
   const doMerge = () => {
-    if (clipBase(up)) renderClip(up);
+    if (needsDisp(up)) renderClip(up);
     // si están en la misma carpeta, la carpeta se sigue aplicando después; si no, se pasa también lo de la carpeta de arriba
     const same = up.folder === down.folder, a = same ? up.opacity : effOpacity(up), f = same ? fxFilter(up.fx) : (layerFilter(up) === 'none' ? '' : layerFilter(up));
-    down.ctx.save(); down.ctx.globalAlpha = a; if (f) down.ctx.filter = f; down.ctx.drawImage(visualCanvas(up), 0, 0); down.ctx.restore();
+    down.ctx.save(); down.ctx.globalAlpha = a; down.ctx.globalCompositeOperation = blendOp(up); if (f) down.ctx.filter = f; down.ctx.drawImage(visualCanvas(up), 0, 0); down.ctx.restore();
     removeLayer(up); activeIndex = layers.indexOf(down); refreshLayers(); layerChanged(down);
   };
   doMerge();
@@ -1660,6 +1739,70 @@ function actDelete() {
   if (isLocked(l)) return;
   removeLayer(l); refreshLayers();
   pushHistory(deleteEntry(l, idx)); scheduleSave();
+}
+// ---- Modo de fusión, bloqueo alfa y máscara de capa ----
+async function actBlend() {
+  const l = layers[activeIndex], cur = l.blend || 'normal';
+  const v = await dialog({ title: '🌗 Modo de fusión', text: `Cómo se mezcla «${l.name}» con lo que tiene debajo.`, ok: null,
+    choices: BLENDS.map(([k, n, d]) => ({ label: (k === cur ? '✓ ' : '') + n, sub: d, value: k })) });
+  if (!v || v === cur) return;
+  const set = b => { l.blend = b; refreshLayers(); scheduleSave(); };
+  set(v); pushHistory({ bytes: 0, undo() { set(cur); }, redo() { set(v); } });
+  toast(`🌗 «${l.name}»: ${blendName(v)}`, 1600);
+}
+function actAlock() {
+  const l = layers[activeIndex]; if (l.mask && l.editMask) return toast('El bloqueo alfa es para el dibujo, no para la máscara', 2200);
+  const set = v => { l.alock = v; refreshLayers(); scheduleSave(); };
+  const v = !l.alock; set(v); pushHistory({ bytes: 0, undo() { set(!v); }, redo() { set(v); } });
+  toast(v ? `▦ Bloqueo alfa: en «${l.name}» solo se pinta encima de lo ya dibujado (ideal para sombrear sin salirse)` : '▦ Bloqueo alfa quitado', 3200);
+}
+function setMaskEdit(l, v) {
+  l.editMask = !!v && !!l.mask; refreshLayers();
+  if (l.editMask) toast('🎭 Pintando la máscara: el pincel oculta, el borrador vuelve a mostrar. Tocá la miniatura del dibujo para volver.', 4200);
+}
+function newMaskCanvas() { const c = makeCanvas(), x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); return c; }
+function setMask(l, m) {
+  l.mask = m; l.maskCtx = m ? m.getContext('2d') : null; l.maskDirty = true; l.maskBlob = null; if (!m) l.editMask = false;
+  if (m) updateMaskThumb(l);
+  clipsDirty = true; refreshLayers(); layers.forEach(x => { if (clipBase(x) === l) renderClip(x); }); scheduleSave();
+}
+async function actMask() {
+  const l = layers[activeIndex];
+  if (l.anim) return toast('Las capas animadas no llevan máscara (cada cuadro es un dibujo distinto)', 2800);
+  if (isLocked(l)) return;
+  if (!l.mask) {
+    const m = newMaskCanvas(); setMask(l, m); setMaskEdit(l, true);
+    pushHistory({ bytes: fullBytes(), undo() { setMask(l, null); }, redo() { setMask(l, m); setMaskEdit(l, true); } });
+    return;
+  }
+  const v = await dialog({ title: '🎭 Máscara de «' + l.name + '»', text: 'La máscara oculta partes de la capa sin borrarlas: lo blanco se ve, lo negro queda oculto.', ok: null, choices: [
+    { label: l.editMask ? '🖌️ Volver a pintar el dibujo' : '🎭 Pintar la máscara', sub: l.editMask ? 'el pincel vuelve a pintar la capa' : 'el pincel oculta, el borrador muestra', value: 'edit' },
+    { label: '🔄 Invertir', sub: 'lo oculto se ve y lo que se veía queda oculto', value: 'inv' },
+    { label: '✅ Aplicar', sub: 'borra de verdad lo oculto y quita la máscara', value: 'apply' },
+    { label: '🗑️ Quitar la máscara', sub: 'la capa se vuelve a ver entera', value: 'del' }] });
+  if (!v) return;
+  const old = l.mask;
+  if (v === 'edit') return setMaskEdit(l, !l.editMask);
+  if (v === 'inv') {
+    // se invierte sobre la misma máscara (así el deshacer de los trazos anteriores sigue funcionando)
+    const invert = () => { const t = makeCanvas(); t.getContext('2d').drawImage(old, 0, 0); const x = l.maskCtx;
+      x.save(); x.globalCompositeOperation = 'copy'; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'destination-out'; x.drawImage(t, 0, 0); x.restore();
+      layerChanged(maskProxy(l)); };
+    invert(); pushHistory({ bytes: fullBytes(), undo: invert, redo: invert });
+    return toast('🔄 Máscara invertida', 1500);
+  }
+  if (v === 'del') {
+    const ed = l.editMask; setMask(l, null);
+    pushHistory({ bytes: 0, undo() { setMask(l, old); l.editMask = ed; refreshLayers(); }, redo() { setMask(l, null); } });
+    return toast('Máscara quitada', 1500);
+  }
+  if (v === 'apply') {
+    const snap = snapshot(l);
+    const doApply = () => { l.ctx.save(); l.ctx.globalCompositeOperation = 'destination-in'; l.ctx.drawImage(old, 0, 0); l.ctx.restore(); setMask(l, null); layerChanged(l); };
+    doApply();
+    pushHistory({ bytes: fullBytes() * 2, undo() { restoreSnapshot(l, snap); setMask(l, old); }, redo: doApply });
+    toast('✅ Máscara aplicada: lo oculto se borró', 1800);
+  }
 }
 async function actRename() {
   const l = layers[activeIndex];
@@ -2388,7 +2531,7 @@ function startTransform() {
   const src = makeCanvas(b.w, b.h), sc = src.getContext('2d');
   sc.translate(-b.x, -b.y); sc.clip(selection.path, selection.rule); sc.drawImage(l.canvas, 0, 0);
   l.ctx.save(); l.ctx.clip(selection.path, selection.rule); l.ctx.clearRect(0, 0, W, H); l.ctx.restore();
-  if (clipBase(l)) renderClip(l);
+  if (needsDisp(l)) renderClip(l);
   xform = { layer: l, before, src, b, M: new DOMMatrix().translate(b.x, b.y), sel: { pts: selection.pts, inverted: selection.inverted } };
   floatCanvas.style.zIndex = activeIndex * 3 + 2; floatCanvas.dataset.fold = l.folder || '';
   floatCanvas.style.opacity = l.opacity;
@@ -2714,7 +2857,7 @@ const taperLen = size => Math.max(40, size * 9);
 function seededRand(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
   t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function startStroke(e, p) {
-  const layer = layers[activeIndex];
+  const layer = paintTarget(layers[activeIndex]);
   if (isLocked(layer)) { mode = 'tap'; return; }
   if (!layer.visible || !folderVisible(layer)) { toast(layer.visible ? 'La carpeta de esta capa está oculta' : 'La capa activa está oculta'); mode = 'tap'; return; }
   if (!ensureCell(layer)) { mode = 'tap'; return; }
@@ -2726,14 +2869,20 @@ function startStroke(e, p) {
   sctx.clearRect(0, 0, W, H);
   sctx.save();
   if (selection) sctx.clip(selection.path, selection.rule);   // con selección, solo se pinta adentro
-  const clipped = !!clipBase(layer);
-  strokeCanvas.style.zIndex = activeIndex * 3 + 2; strokeCanvas.dataset.fold = layer.folder || '';
+  const clipped = !layer.isMask && needsDisp(layer);
+  strokeCanvas.style.zIndex = activeIndex * 3 + 2; strokeCanvas.dataset.fold = layer.folder || ''; strokeCanvas.dataset.blend = blendOp(layer) === 'source-over' ? '' : blendOp(layer);
   strokeCanvas.style.opacity = settings.opacity * (parseFloat(layer.canvas.style.opacity) || 1);
   strokeCanvas.style.display = (erasing || smudging || clipped) ? 'none' : '';
   stroke = { layer, tool, erasing, direct: erasing || smudging, clipped, sel: selection,
     color: erasing ? '#000000' : settings.color, size: settings.size, opacity: settings.opacity, smooth: pixelMode ? 0 : settings.smoothing,
     strength: settings.smudge, usePressure: !pixelMode && settings.pressure && e.pointerType === 'pen',
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
+  if (layer.isMask && !smudging) {   // máscara: pintar oculta, borrar vuelve a mostrar
+    stroke.direct = true; strokeCanvas.style.display = 'none';
+    if (erasing) { stroke.erasing = false; stroke.reveal = true; } else stroke.erasing = true;
+  } else if (layer.alock && !erasing && !smudging) {   // bloqueo alfa: el trazo solo cae donde ya hay dibujo
+    stroke.direct = true; stroke.alock = true; strokeCanvas.style.display = 'none';
+  }
   stroke.dyn = (!pixelMode && DYN_TOOLS.includes(tool)) ? getDyn(tool) : null;
   stroke.tlen = taperLen(settings.size); stroke.pts = []; stroke.len = 0; stroke.total = null;
   stroke.estLen = 600 / viewScale(); stroke.t0 = performance.now();   // largo probable mientras se dibuja (equivale a 600 px de pantalla)
@@ -3022,7 +3171,17 @@ function liveUpdate() {
   markScreen();
   const s = stroke;
   if (s.erasing) eraseComposite();
+  else if (s.alock || s.reveal) overComposite(s);
   if (s.clipped) { const b = clampBox(s.bbox); if (b) renderClip(s.layer, b); }
+  if (s.layer.isMask) { const b = clampBox(s.bbox); if (b) { renderClip(s.layer.owner, b); layers.forEach(x => { if (clipBase(x) === s.layer.owner) renderClip(x, b); }); } }
+}
+// Trazo con bloqueo alfa (solo sobre lo pintado) o que vuelve a mostrar en una máscara
+function overComposite(s) {
+  const sym = symStroke(s), b = sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox); if (!b) return;
+  const ctx = s.layer.ctx, src = sym ? symUnion() : strokeCanvas;
+  ctx.save(); ctx.clearRect(b.x, b.y, b.w, b.h); ctx.drawImage(backup, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
+  ctx.globalCompositeOperation = s.alock ? 'source-atop' : 'source-over'; ctx.globalAlpha = s.opacity;
+  ctx.drawImage(src, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); ctx.restore();
 }
 function eraseComposite() {
   const s = stroke, sym = symStroke(s), b = sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox); if (!b) return;
@@ -3061,6 +3220,7 @@ function endStroke() {
   if (s.raf) cancelAnimationFrame(s.raf);
   const sym = symStroke(s), b = s.empty ? null : (sym ? symBox(clampBox(s.bbox)) : clampBox(s.bbox)), ctx = s.layer.ctx;
   if (s.erasing) eraseComposite();
+  else if (s.alock || s.reveal) overComposite(s);
   else if (!s.direct && b) {
     const src = sym ? symUnion() : strokeCanvas;
     ctx.save(); ctx.globalAlpha = s.opacity;
@@ -4022,7 +4182,7 @@ function convertToObject(idx, useSel, name) {
   const comp = makeCanvas(), cx = comp.getContext('2d', { willReadFrequently: true });
   if (useSel) { cx.save(); cx.clip(selection.path, selection.rule); }
   idx.slice().sort((a, b) => a - b).forEach(i => {
-    const l = layers[i]; if (clipBase(l)) renderClip(l);
+    const l = layers[i]; if (needsDisp(l)) renderClip(l);
     cx.globalAlpha = l.opacity; cx.drawImage(visualCanvas(l), 0, 0);
   });
   cx.globalAlpha = 1; if (useSel) cx.restore();
@@ -4958,12 +5118,15 @@ function cellThumbOf(c, size) {
 let clipTmp = null;
 function frameSrc(l, f) {
   const src = l.anim ? cellAt(l, f) : l.canvas; if (!src) return null;
-  const base = clipBase(l); if (!base) return src;
-  const bs = base.anim ? cellAt(base, f) : base.canvas; if (!bs) return null;
+  const base = clipBase(l), mk = l.mask && !l.anim; if (!base && !mk) return src;
+  const bs = base ? (base.anim ? cellAt(base, f) : base.canvas) : null; if (base && !bs) return null;
   if (!clipTmp) clipTmp = document.createElement('canvas');
   if (clipTmp.width !== W || clipTmp.height !== H) { clipTmp.width = W; clipTmp.height = H; }
   const x = clipTmp.getContext('2d'); x.globalCompositeOperation = 'copy'; x.drawImage(src, 0, 0);
-  x.globalCompositeOperation = 'destination-in'; x.drawImage(bs, 0, 0); x.globalCompositeOperation = 'source-over';
+  x.globalCompositeOperation = 'destination-in';
+  if (mk) x.drawImage(l.mask, 0, 0);
+  if (bs) { x.drawImage(bs, 0, 0); if (base.mask && !base.anim) x.drawImage(base.mask, 0, 0); }
+  x.globalCompositeOperation = 'source-over';
   return clipTmp;
 }
 function drawLayersAt(ctx, f) {
@@ -5150,6 +5313,7 @@ function floodMask(d, sx, sy, tol) {
 function doFill(p) {
   const layer = layers[activeIndex];
   if (isLocked(layer)) return;
+  if (layer.mask && layer.editMask) return toast('🎭 Estás en la máscara: usá el pincel para ocultar y el borrador para mostrar', 3000);
   if (!layer.visible || !folderVisible(layer)) return toast('La capa activa (o su carpeta) está oculta');
   const c = toCanvas(p), sx = Math.floor(c.x), sy = Math.floor(c.y);
   if (sx < 0 || sy < 0 || sx >= W || sy >= H) return;
@@ -5175,7 +5339,8 @@ function doFill(p) {
   pushHistory(editRegion(layer, { x: x0, y: y0, w, h }, () => {
     layer.ctx.save();
     if (selection) layer.ctx.clip(selection.path, selection.rule);
-    layer.ctx.globalAlpha = settings.opacity; layer.ctx.drawImage(tmp, x0, y0); layer.ctx.restore();
+    layer.ctx.globalAlpha = settings.opacity; if (layer.alock) layer.ctx.globalCompositeOperation = 'source-atop';
+    layer.ctx.drawImage(tmp, x0, y0); layer.ctx.restore();
   }));
   pushRecent(settings.color);
 }
@@ -5189,8 +5354,8 @@ function sampleAt(p) {
   const c = toCanvas(p), x = Math.floor(c.x), y = Math.floor(c.y);
   if (x < 0 || y < 0 || x >= W || y >= H) return null;
   pickCtx.clearRect(0, 0, 1, 1);
-  for (const l of layers) { if (!isShown(l)) continue; pickCtx.globalAlpha = effOpacity(l); pickCtx.filter = layerFilter(l); pickCtx.drawImage(visualCanvas(l), x, y, 1, 1, 0, 0, 1, 1); }
-  pickCtx.globalAlpha = 1; pickCtx.filter = 'none';
+  for (const l of layers) { if (!isShown(l)) continue; pickCtx.globalAlpha = effOpacity(l); pickCtx.filter = layerFilter(l); pickCtx.globalCompositeOperation = blendOp(l); pickCtx.drawImage(visualCanvas(l), x, y, 1, 1, 0, 0, 1, 1); }
+  pickCtx.globalAlpha = 1; pickCtx.filter = 'none'; pickCtx.globalCompositeOperation = 'source-over';
   pickCtx.drawImage(animCanvas, x, y, 1, 1, 0, 0, 1, 1);
   const d = pickCtx.getImageData(0, 0, 1, 1).data;
   return d[3] === 0 ? null : rgbToHex(d[0], d[1], d[2]);
@@ -5244,7 +5409,7 @@ function onPenSeen() {
     toast('Lápiz detectado: ahora los dedos mueven el lienzo (se cambia en Pincel)', 3500);
   }
 }
-function startPan(id, p) { mode = 'pan'; panState = { id, sx: p.x, sy: p.y, startView: view }; viewport.style.cursor = 'grabbing'; }
+function startPan(id, p) { gestureKey++; mode = 'pan'; panState = { id, sx: p.x, sy: p.y, startView: view }; viewport.style.cursor = 'grabbing'; }
 // Calcula giro + escala + traslado a partir de dos dedos (en pantalla o sobre el lienzo)
 function twoFingerMatrix(s1, s2, c1, c2, st, threshold) {
   const d0 = Math.hypot(s2.x - s1.x, s2.y - s1.y) || 1, d1 = Math.hypot(c2.x - c1.x, c2.y - c1.y);
@@ -5256,6 +5421,7 @@ function twoFingerMatrix(s1, s2, c1, c2, st, threshold) {
   return { f: d1 / d0, rot, m0, m1 };
 }
 function startPinch(a, b) {
+  gestureKey++;
   const pa = pointers.get(a), pb = pointers.get(b);
   pinch = { a, b, s1: { x: pa.x, y: pa.y }, s2: { x: pb.x, y: pb.y }, startView: view, rotating: false, angOff: 0 };
   mode = 'pinch';
@@ -5741,6 +5907,7 @@ function showHelp() {
     <li><b>Un dedo</b> dibuja. <b>Dos dedos</b> mueven, acercan y giran la hoja. <b>Toque con dos dedos:</b> deshacer; <b>con tres:</b> rehacer.</li>
     <li><b>🖌️ Pincel:</b> tocalo otra vez para elegir el tipo (pluma, aerógrafo, carbonilla, mis pinceles, difuminar, degradado).</li>
     <li>Las barritas de la izquierda cambian el <b>tamaño</b> (arriba, en px) y la <b>opacidad</b> (abajo, en %). El circulito del medio abre todas las opciones.</li>
+    <li><b>📚 Capas, lo nuevo:</b> <b>🌗 Fusión</b> mezcla la capa con lo de abajo (Multiplicar para sombras, Trama y Añadir para luces, Superponer, Color…). <b>▦ Bloq. alfa</b> hace que el pincel pinte solo encima de lo ya dibujado en esa capa (para sombrear sin salirte). <b>🎭 Máscara</b> oculta sin borrar: el pincel oculta, el borrador vuelve a mostrar; tocá la miniatura negra o la del dibujo para elegir qué pintás.</li>
     <li><b>● Color:</b> círculo cromático, paletas (también retro para pixel art), mezclador y transiciones.</li>
     <li><b>👾 Pixel art:</b> en 🏠 Mis proyectos → Pixel art. Lápiz de píxeles, cuadrícula, simetría y exportación agrandada.</li>
     <li><b>🎬 Cuadro a cuadro:</b> cada cuadro tiene su dibujo; <b>＋ Cuadro</b> agrega el siguiente y la <b>🧅 cebolla</b> muestra lo anterior en rojo y lo siguiente en verde.</li>
@@ -6134,6 +6301,7 @@ async function projectFileData() {
   return { app: 'Tokers', version: 5, name: curProject ? curProject.name : 'Proyecto', kind: curProject ? curProject.kind : (pixelMode ? 'pixel' : 'draw'),
     w: W, h: H, pixel: pixelMode, active: activeIndex, scene: await sceneToData(true), folders: folders.filter(f => layers.some(l => l.folder === f.id)).map(f => ({ ...f })),
     layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked, folder: l.folder || null, fx: l.fx || null,
+      blend: l.blend || 'normal', alock: !!l.alock, maskPng: l.mask && !l.anim ? l.mask.toDataURL('image/png') : null,
       png: l.anim ? null : l.canvas.toDataURL('image/png'),
       cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, png: c.toDataURL('image/png') })) : null })) };
 }
@@ -6141,7 +6309,8 @@ async function projectFileData() {
 async function recordToFileData(meta, rec, sc) {
   const layersOut = [];
   for (const d of rec.layers) {
-    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, locked: !!d.locked, folder: d.folder || null, fx: d.fx || null, png: null, cells: null };
+    const o = { name: d.name, opacity: d.opacity ?? 1, visible: d.visible !== false, clip: !!d.clip, anim: !!d.anim, locked: !!d.locked, folder: d.folder || null, fx: d.fx || null, png: null, cells: null,
+      blend: d.blend || 'normal', alock: !!d.alock, maskPng: d.mask ? await blobToDataURL(d.mask) : null };
     if (d.anim) { o.cells = []; for (const c of d.cells || []) if (c.blob) o.cells.push({ f: c.f, png: await blobToDataURL(c.blob) }); }
     else if (d.blob) o.png = await blobToDataURL(d.blob);
     else { const e = makeCanvas(rec.w, rec.h); o.png = e.toDataURL('image/png'); }
@@ -6188,7 +6357,10 @@ async function openProjectFile(file) {
         for (const c of d.cells || []) { const cv = newCellCanvas(); cv.getContext('2d').drawImage(await loadImageURL(c.png), 0, 0, W, H); l.cells.set(c.f, cv); cellDirty.add(cv); }
       } else if (d.png) l.ctx.drawImage(await loadImageURL(d.png), 0, 0, W, H);
       l.opacity = Number.isFinite(+d.opacity) ? clamp(+d.opacity, 0, 1) : 1;
-      l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; l.folder = d.folder || null; l.fx = d.fx || null; ls.push(l);
+      l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; l.folder = d.folder || null; l.fx = d.fx || null;
+      l.blend = BLENDS.some(b => b[0] === d.blend) ? d.blend : 'normal'; l.alock = !!d.alock;
+      if (d.maskPng && !l.anim) { const m = makeCanvas(); m.getContext('2d').drawImage(await loadImageURL(d.maskPng), 0, 0, W, H); l.mask = m; l.maskCtx = m.getContext('2d'); l.maskDirty = true; }
+      ls.push(l);
     }
     replaceDocument(ls, data.active | 0, true, Array.isArray(data.folders) ? data.folders : []);
     await loadSceneData(data.scene || null, true);
@@ -6290,9 +6462,11 @@ function saveNow(withThumb) {
       for (const l of layers) {
         if (l.anim) { for (const c of l.cells.values()) if (!cellBlob.has(c) || cellDirty.has(c)) { cellDirty.delete(c); cellBlob.set(c, await canvasToBlob(c)); } }
         else if (l.dirty || !l.blob) { l.dirty = false; l.blob = await canvasToBlob(l.canvas); }
+        if (l.mask && (l.maskDirty || !l.maskBlob)) { l.maskDirty = false; l.maskBlob = await canvasToBlob(l.mask); }
       }
       await idbPut('p:' + P.id, { version: 3, w: W, h: H, pixel: pixelMode, active: activeIndex, onion, folders: folders.filter(f => layers.some(l => l.folder === f.id)).map(f => ({ ...f })),
         layers: layers.map(l => ({ name: l.name, opacity: l.opacity, visible: l.visible, clip: l.clip, anim: !!l.anim, locked: !!l.locked, folder: l.folder || null, fx: l.fx || null,
+          blend: l.blend || 'normal', alock: !!l.alock, mask: l.mask ? l.maskBlob : null,
           blob: l.anim ? null : l.blob, cells: l.anim ? [...l.cells].map(([f, c]) => ({ f, blob: cellBlob.get(c) })) : null })) });
       await idbPut('ps:' + P.id, await sceneToData(false));
       P.updated = Date.now(); P.w = W; P.h = H; P.changed = true;
@@ -6326,6 +6500,8 @@ async function loadProjectDoc(p) {
         for (const c of d.cells || []) { if (!c.blob) continue; const cv = newCellCanvas(); cv.getContext('2d').drawImage(await blobToDrawable(c.blob), 0, 0); l.cells.set(c.f, cv); cellBlob.set(cv, c.blob); }
       } else if (d.blob) l.ctx.drawImage(await blobToDrawable(d.blob), 0, 0);
       l.opacity = d.opacity ?? 1; l.visible = d.visible !== false; l.clip = !!d.clip; l.locked = !!d.locked; l.folder = d.folder || null; l.fx = d.fx || null;
+      l.blend = d.blend || 'normal'; l.alock = !!d.alock;
+      if (d.mask && !l.anim) { const m = makeCanvas(); m.getContext('2d').drawImage(await blobToDrawable(d.mask), 0, 0); l.mask = m; l.maskCtx = m.getContext('2d'); l.maskBlob = d.mask; }
       l.blob = d.blob; l.dirty = false; ls.push(l);
     }
     onion = !!rec.onion;
@@ -6735,6 +6911,7 @@ function setupUI() {
   });
   $('lop-range').addEventListener('change', () => { renderLayerPanel(); scheduleSave(); });
   const acts = { clip: actClip, up: () => actMoveStruct(1), down: () => actMoveStruct(-1), dup: actDuplicate, merge: actMerge,
+    blend: actBlend, alock: actAlock, mask: actMask,
     folder: actFolder, fx: () => { const F = folderById(selFolder); F ? openEffects(F, true) : openEffects(layers[activeIndex], false); },
     rename: actRename, clear: actClear, import: () => $('file-image').click(),
     obj: () => { closePanels(); convertDialog(false); }, anim: () => { closePanels(); actAnimLayer(); }, delete: actDelete };
