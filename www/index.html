@@ -672,6 +672,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <div class="drow" id="dock-b">
         <button class="dbtn anim-only ctx-cell" id="an-addf"><span>＋</span>Cuadro</button>
         <button class="dbtn anim-only ctx-cell" id="an-dupf"><span>⧉</span>Duplicar</button>
+        <button class="dbtn anim-only ctx-cell" id="an-hold"><span>⏱</span>Duración</button>
         <button class="dbtn anim-only ctx-cell" id="an-delf"><span>🗑️</span>Quitar</button>
         <button class="dbtn anim-only" id="an-newlayer"><span>➕</span>Capa</button>
         <button class="dbtn anim-only ctx-static" id="an-animlayer"><span>🎞️</span>Animar capa</button>
@@ -690,6 +691,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="dbtn anim-only" id="an-video"><span>🎞️</span>Video</button>
         <button class="dbtn anim-only" id="an-gif"><span>🎞️</span>GIF</button>
         <button class="dbtn anim-only" id="an-sprites"><span>🖼️</span>Sprites</button>
+        <button class="dbtn anim-only" id="an-pngseq"><span>🗂️</span>PNG</button>
         <button class="dbtn anim-only" id="an-lib"><span>📁</span>Carpeta</button>
         <div class="dseg rig-only"><button data-rsm="lasso">〰️ Lazo</button><button data-rsm="rect">▭</button></div>
         <button class="dbtn rig-only" id="rg-bone"><span>🦴</span>Hacer hueso</button>
@@ -764,6 +766,11 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <button class="blib-open nopix" id="blib-open"><span class="bo-ico">📚</span><span><b>Biblioteca de pinceles</b><small id="blib-cur">44 pinceles: acuarela, óleo, lápiz, fuego, césped…</small></span><span class="bo-go">›</span></button>
         <div class="ptitle" id="btypes-title">Tipo de pincel</div>
         <div class="btypes" id="btypes"></div>
+        <div id="grad-sec" class="nopix" hidden>
+          <div class="ptitle">🌈 Degradado</div>
+          <div class="seg" id="grad-kind"><button data-gk="linear">Lineal</button><button data-gk="radial">◎ Radial (desde el centro)</button></div>
+          <div class="sep"></div>
+        </div>
         <div id="shape-sec" class="nopix">
           <div class="ptitle">📐 Dibujar como</div>
           <div class="seg" id="shape-seg"><button data-shp="free">✏️ Libre</button><button data-shp="line">╱ Línea</button><button data-shp="rect">▭ Rect.</button><button data-shp="ellipse">◯ Elipse</button><button data-shp="curve">∿ Curva</button></div>
@@ -776,6 +783,12 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
           <div class="ptitle" style="margin-top:6px">Simetría (dibuja en espejo)</div>
           <div class="seg" id="mirror-seg"><button data-mir="none">No</button><button data-mir="x">↔</button><button data-mir="y">↕</button><button data-mir="xy">✚</button></div>
         </div>
+        <div id="libadj-sec" class="nopix" hidden>
+          <div class="ptitle">⚙️ Ajustar <span id="libadj-name"></span></div>
+          <div id="libadj-fields"></div>
+          <button class="btn-line" id="libadj-reset">↺ Volver a como venía</button>
+          <div class="sep"></div>
+        </div>
         <div id="custom-sec" class="nopix">
           <div class="ptitle">⭐ Mis pinceles</div>
           <div class="blist" id="brush-list"></div>
@@ -784,6 +797,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
             <button class="btn-line sm" id="brush-edit" title="Editar">✏️</button>
             <button class="btn-line sm" id="brush-del" title="Borrar">🗑️</button>
           </div>
+          <div class="brow"><button class="btn-line" id="brush-export">⬆️ Exportar mis pinceles</button><button class="btn-line" id="brush-import">⬇️ Importar pinceles</button></div>
         </div>
         <div id="dyn-sec" class="nopix">
           <div class="sep"></div>
@@ -806,11 +820,14 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <div class="field"><label>Opacidad <b id="opacity-val">100%</b></label><input type="range" id="opacity-range" min="5" max="100"></div>
         <div class="field nopix"><label>Fuerza del difuminado 👆 <b id="smudge-val">60%</b></label><input type="range" id="smudge-range" min="10" max="100"></div>
         <label class="check nopix"><input type="checkbox" id="chk-pressure"> La presión del lápiz cambia el grosor</label>
+        <label class="check nopix"><input type="checkbox" id="chk-pressop"> La presión del lápiz también cambia la opacidad</label>
         <label class="check"><input type="checkbox" id="chk-penonly"> Dibujar solo con lápiz (los dedos mueven el lienzo)</label>
         <div class="sep"></div>
         <div class="ptitle">Balde de relleno</div>
         <div class="field nopix"><label>Tolerancia <b id="tol-val">32</b></label><input type="range" id="tol-range" min="0" max="128"></div>
         <label class="check"><input type="checkbox" id="chk-sampleall"> Respetar las líneas de todas las capas</label>
+        <div class="ptitle" style="margin-top:8px">Rellenar con</div>
+        <div class="seg" id="fill-pat"><button data-fp="none">Liso</button><button data-fp="dots">⁘ Puntos</button><button data-fp="hatch">▤ Rayado</button><button data-fp="cross">▦ Cuadriculado</button><button data-fp="checker">▚ Damero</button><button data-fp="stipple">░ Grano</button></div>
       </div>
     </div>
 
@@ -857,6 +874,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button class="mitem" data-menu="video"><span>🎞️</span>Exportar animación (video)</button>
       <button class="mitem" data-menu="gif"><span>🎞️</span>Exportar animación (GIF)</button>
       <button class="mitem" data-menu="sprites"><span>🧱</span>Hoja de sprites (para juegos)</button>
+      <button class="mitem" data-menu="pngseq"><span>🗂️</span>Secuencia de PNG (un archivo por cuadro)</button>
       <button class="mitem" data-menu="comic"><span>💬</span>Historieta: viñetas y globos</button>
       <div class="msec">Lienzo</div>
       <button class="mitem" data-menu="size"><span>📐</span>Tamaño del lienzo…</button>
@@ -1037,7 +1055,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard', shapeMode:'free' };
+  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard', shapeMode:'free', gradKind:'linear', fillPattern:'none', pressureOp:false, bparams:{} };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -1873,7 +1891,10 @@ async function actMask() {
 async function actRename() {
   const l = layers[activeIndex];
   const v = await dialog({ title: 'Nombre de la capa', input: l.name, ok: 'Guardar' });
-  if (v && v.trim()) { l.name = v.trim().slice(0, 40); refreshLayers(); scheduleSave(); }
+  if (v && v.trim()) {
+    const old = l.name, nw = v.trim().slice(0, 40), set = n => { l.name = n; refreshLayers(); scheduleSave(); };
+    set(nw); pushHistory({ bytes: 0, undo() { set(old); }, redo() { set(nw); } });
+  }
 }
 async function importImageFile(file) {
   if (!file || !canAddLayer()) return;
@@ -3021,7 +3042,7 @@ function startStroke(e, p) {
   strokeCanvas.style.display = (erasing || smudging || clipped) ? 'none' : '';
   stroke = { layer, tool, erasing, direct: erasing || smudging, clipped, sel: selection,
     color: erasing ? '#000000' : settings.color, size: settings.size, opacity: settings.opacity, smooth: pixelMode ? 0 : settings.smoothing,
-    strength: settings.smudge, usePressure: !pixelMode && settings.pressure && e.pointerType === 'pen',
+    strength: settings.smudge, usePressure: !pixelMode && (settings.pressure || settings.pressureOp) && e.pointerType === 'pen',
     bbox: [Infinity, Infinity, -Infinity, -Infinity], sp: null, last: null, lastRaw: null, raf: 0 };
   if (!pixelMode && settings.shapeMode && settings.shapeMode !== 'free' && QS_TOOLS.includes(tool)) {
     stroke.force = settings.shapeMode; stroke.smooth = 0; const c0 = toCanvas(p); stroke.a0 = { x: c0.x, y: c0.y };
@@ -3032,6 +3053,8 @@ function startStroke(e, p) {
   } else if (layer.alock && !erasing && !smudging) {   // bloqueo alfa: el trazo solo cae donde ya hay dibujo
     stroke.direct = true; stroke.alock = true; strokeCanvas.style.display = 'none';
   }
+  stroke.pressOp = !!(stroke.usePressure && settings.pressureOp && !erasing && !smudging);
+  stroke.pressOnlyOp = stroke.usePressure && !settings.pressure;   // solo opacidad, sin cambiar el grosor
   stroke.dyn = (!pixelMode && DYN_TOOLS.includes(tool)) ? getDyn(tool) : null;
   stroke.tlen = taperLen(settings.size); stroke.pts = []; stroke.len = 0; stroke.total = null;
   stroke.estLen = 600 / viewScale(); stroke.t0 = performance.now();   // largo probable mientras se dibuja (equivale a 600 px de pantalla)
@@ -3101,7 +3124,7 @@ function strokeMove(p, ev) {
 }
 // Grosor según presión, velocidad y puntas del trazo (recibe el punto)
 function pf(q) {
-  const s = stroke; let f = s.usePressure ? 0.2 + 0.8 * q.p : 1;
+  const s = stroke; let f = s.usePressure && !s.pressOnlyOp ? 0.2 + 0.8 * q.p : 1;
   const D = s.dyn; if (!D) return f;
   if (q.v != null) f *= q.v;
   // Largo de cada punta (en píxeles de la hoja): nunca más del 45 % del trazo, así el medio llega siempre al tamaño elegido
@@ -3160,7 +3183,7 @@ function drawPt(pt, final) {
   switch (s.tool) {
     case 'custom': customBrush(pt, final); break;
     case 'gradient': gradientFill(pt, final); break;
-    case 'brush': if (pixelMode) pixelPen(pt); else roundBrush(pt, final); break;
+    case 'brush': if (pixelMode) pixelPen(pt); else if (s.pressOp) pressDab(pt); else roundBrush(pt, final); break;
     case 'eraser':
       if (pixelMode) pixelPen(pt);
       else if (s.ek === 'soft') softEraser(pt);
@@ -3191,6 +3214,17 @@ function roundBrush(pt, final) {
   ctx.quadraticCurveTo(s.last.x, s.last.y, mid.x, mid.y); ctx.stroke();
   grow(pt.x, pt.y, w / 2);
   s.lastMid = mid; s.last = pt; s.lastW = w;
+}
+// Pincel común con la presión en la opacidad: sellos redondos cuya carga sigue la presión
+// (unos 10 sellos se pisan en cada punto: la carga de cada uno se calcula para llegar a la opacidad pedida)
+function pressDab(pt) {
+  const s = stroke;
+  walkPath(pt, Math.max(0.7, s.size * 0.1), (x, y, q) => {
+    const w = Math.max(0.5, s.size * pf(q)), ov = Math.max(1, w / Math.max(0.7, s.size * 0.1)), p = clamp(q.p, 0.04, 1);
+    sctx.globalAlpha = 1 - Math.pow(1 - p, 1 / ov); sctx.fillStyle = s.color;
+    sctx.beginPath(); sctx.arc(x, y, w / 2, 0, 6.2832); sctx.fill();
+  });
+  sctx.globalAlpha = 1; grow(pt.x, pt.y, s.size / 2 + 2);
 }
 // Caligrafía: plumilla a 45° rellenando el área barrida (trazo continuo)
 function calligraphy(pt) {
@@ -3286,7 +3320,8 @@ function gradientFill(pt, final) {
 function paintGradient(s, pt) {
   const g0 = s.g0; markScreen();
   sctx.clearRect(0, 0, W, H);
-  const g = sctx.createLinearGradient(g0.x, g0.y, pt.x, pt.y);
+  const g = settings.gradKind === 'radial' ? sctx.createRadialGradient(g0.x, g0.y, 0, g0.x, g0.y, Math.hypot(pt.x - g0.x, pt.y - g0.y))
+    : sctx.createLinearGradient(g0.x, g0.y, pt.x, pt.y);
   s.stops.forEach((c, i) => g.addColorStop(i / (s.stops.length - 1), c));
   sctx.fillStyle = g; sctx.fillRect(0, 0, W, H);
 }
@@ -3455,6 +3490,7 @@ function tintedTip(B, color) {
 function currentBrush() { return brushes.find(b => b.id === settings.customBrushId) || brushes[0]; }
 async function loadBrushes() {
   brushes = [...libBrushes(), ...builtinBrushes()];
+  brushes.forEach(B => { if (B.lib) applyLibParams(B); });
   try {
     const saved = await idbGet('brushes');
     if (Array.isArray(saved)) for (const r of saved) {
@@ -3584,6 +3620,51 @@ async function openBrushEditor(existing) {
     toast(`Pincel «${B.name}» guardado`);
   };
   modal.classList.add('open');
+}
+// Panel para ajustar un pincel de la biblioteca (se guarda por pincel)
+function renderLibAdjust() {
+  const sec = $('libadj-sec'); if (!sec) return;
+  const B = settings.tool === 'custom' && !pixelMode ? currentBrush() : null;
+  const ok = B && B.lib && !B.def.m && !B.def.round;
+  sec.hidden = !ok; if (!ok) return;
+  $('libadj-name').textContent = '«' + B.name + '»';
+  const box = $('libadj-fields'); box.textContent = '';
+  for (const [k, label, mn, mx, fmt] of LIB_ADJ) {
+    const v = k === 'flow' ? (B.flow ?? B.def.fl ?? 1) : B[k];
+    const f = document.createElement('div'); f.className = 'field';
+    f.innerHTML = `<label>${label} <b></b></label><input type="range" min="0" max="1000">`;
+    const r = f.querySelector('input'), b = f.querySelector('b');
+    r.value = Math.round((v - mn) / (mx - mn) * 1000); b.textContent = fmt(v);
+    r.oninput = () => { const nv = mn + (mx - mn) * r.value / 1000; b.textContent = fmt(nv);
+      settings.bparams = { ...(settings.bparams || {}) }; settings.bparams[B.id] = { ...(settings.bparams[B.id] || {}), [k]: nv };
+      applyLibParams(B); [...libPrevCache.keys()].forEach(key => { if (key.startsWith(B.id)) libPrevCache.delete(key); }); };
+    r.onchange = () => saveSettings();
+    box.appendChild(f);
+  }
+}
+// Exportar e importar pinceles propios (un archivo .tokpinceles con las puntas dentro)
+async function exportBrushes() {
+  const mine = brushes.filter(b => !b.builtin);
+  if (!mine.length) return toast('Todavía no creaste pinceles propios (＋ Crear pincel desde una imagen)', 3000);
+  const data = { app: "Tokers", kind: 'pinceles', version: 1, brushes: mine.map(({ tip, builtin, ...r }) => ({ ...r, tipURL: r.tipURL || tip.toDataURL('image/png') })),
+    ajustes: settings.bparams || {} };
+  await shareOrDownload(new Blob([JSON.stringify(data)], { type: 'application/json' }), `mis_pinceles_${stamp()}.tokpinceles`, 'application/json');
+}
+async function importBrushes() {
+  const file = await pickFile('.tokpinceles,.json,application/json'); if (!file) return;
+  let data; try { data = JSON.parse(await file.text()); } catch (e) { return toast('Ese archivo no tiene pinceles de Toker\'s'); }
+  if (!data || !Array.isArray(data.brushes)) return toast('Ese archivo no tiene pinceles de Toker\'s');
+  let n = 0;
+  for (const r of data.brushes.slice(0, 60)) {
+    try {
+      const img = await loadImageURL(r.tipURL), tip = makeCanvas(TIP, TIP); tip.getContext('2d').drawImage(img, 0, 0, TIP, TIP);
+      const B = { ...r, id: 'u-' + Date.now().toString(36) + n, name: String(r.name || 'Pincel').slice(0, 24), tip, builtin: false };
+      ['spacing', 'rotJitter', 'scatter', 'sizeJitter'].forEach(k => { B[k] = Number.isFinite(+B[k]) ? +B[k] : 0; });
+      brushes.push(B); n++;
+    } catch (e) {}
+  }
+  if (data.ajustes && typeof data.ajustes === 'object') { settings.bparams = { ...(settings.bparams || {}), ...data.ajustes }; brushes.forEach(B => { if (B.lib) applyLibParams(B); }); saveSettings(); }
+  await saveBrushes(); renderBrushList(); toast(`⬇️ ${n} pincel${n === 1 ? '' : 'es'} importado${n === 1 ? '' : 's'} (están en ⭐ Mis pinceles)`, 2800);
 }
 async function deleteBrush() {
   const B = currentBrush(); if (!B || B.builtin) return;
@@ -3720,6 +3801,8 @@ function grainTile(kind) {
   else if (kind === 'stipple') fn = (X, Y) => R() < 0.36 ? 1 : 0;
   else if (kind === 'hatch') fn = (X, Y) => { const v = ((X + Y) % 8 + 8) % 8; return clamp(1.6 - Math.abs(v - 2), 0, 1); };
   else if (kind === 'shatch') { const r = []; for (let i = 0; i < T * T; i++) r.push(R()); fn = (X, Y) => { const v = ((X - Y) % 6 + 6) % 6; return clamp(1.4 - Math.abs(v - 2), 0, 1) * (r[Y * T + X] < 0.82 ? 1 : 0); }; }
+  else if (kind === 'cross') fn = (X, Y) => { const a = ((X + Y) % 8 + 8) % 8, b = ((X - Y) % 8 + 8) % 8; return clamp(1.6 - Math.min(Math.abs(a - 2), Math.abs(b - 2)), 0, 1); };
+  else if (kind === 'checker') fn = (X, Y) => ((Math.floor(X / 16) + Math.floor(Y / 16)) % 2 ? 1 : 0);
   else if (kind === 'dots') fn = (X, Y) => { const p = 8, d1 = Math.hypot(((X % p) + p) % p - p / 2, ((Y % p) + p) % p - p / 2), d2 = Math.hypot(((X + p / 2) % p) - p / 2, ((Y + p / 2) % p) - p / 2); return clamp(2.6 - Math.min(d1, d2) + 0.5, 0, 1); };
   const d = x.getImageData(0, 0, T, T), p = d.data;
   if (fn) { for (let Y = 0; Y < T; Y++) for (let X = 0; X < T; X++) { const i = (Y * T + X) * 4; p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = 255 * fn(X, Y); } }
@@ -3779,6 +3862,14 @@ const LIB_DEFS = [
   { id: 'l-vegetacion', n: 'Vegetación', cat: 'nature', ico: '🌿', tips: R => tBranch(R), v: 4, sp: 0.75, fl: 1, rj: 180, sc: 0.45, sj: 0.35, hj: 0.03, lj: 0.14, sz: 90 },
   { id: 'l-follaje', n: 'Follaje (arbustos)', cat: 'nature', ico: '🌳', tips: R => tBush(R), v: 4, sp: 0.3, fl: 1, rj: 180, sc: 0.3, sj: 0.3, lj: 0.06, sz: 70 },
 ];
+const LIB_ADJ = [['spacing', 'Separación', 0.02, 1.5, v => Math.round(v * 100) + '%'], ['rotJitter', 'Giro al azar', 0, 180, v => Math.round(v) + '°'],
+  ['scatter', 'Dispersión', 0, 1.5, v => Math.round(v * 100) + '%'], ['sizeJitter', 'Variación de tamaño', 0, 0.9, v => Math.round(v * 100) + '%'], ['flow', 'Carga de pintura', 0.02, 1, v => Math.round(v * 100) + '%']];
+function libDefault(B, k) { const d = B.def; return k === 'spacing' ? (d.sp ?? 0.2) : k === 'rotJitter' ? (d.rj || 0) : k === 'scatter' ? (d.sc || 0) : k === 'sizeJitter' ? (d.sj || 0) : (d.fl ?? 1); }
+function applyLibParams(B) {
+  const o = (settings.bparams || {})[B.id] || {};
+  for (const [k] of LIB_ADJ) B[k] = o[k] ?? libDefault(B, k);
+  if (o.flow == null) B.flow = undefined;
+}
 function libBrushes() {
   return LIB_DEFS.map(d => ({ id: d.id, name: d.n, ico: d.ico, cat: d.cat, lib: true, builtin: true, def: d, keep: false,
     spacing: d.sp ?? 0.2, follow: !!d.fw, rotJitter: d.rj || 0, scatter: d.sc || 0, sizeJitter: d.sj || 0, dyn: d.dyn || null, tips: null,
@@ -3830,7 +3921,7 @@ function libDab(s, ctx, B, x, y, size, dir, R, gb) {
   const ang = (B.follow ? dir : 0) + (d.rot || 0) + (R() - 0.5) * B.rotJitter * Math.PI / 180;
   const cx = x - Math.sin(dir) * off, cy = y + Math.cos(dir) * off, nt = libTips(B).length, vi = nt > 1 ? (R() * nt) | 0 : 0;
   const col = libColor(s, d, R), cs = Math.cos(ang), sn = Math.sin(ang);
-  const passes = d.passes || [{ s: 1, f: d.fl ?? 1, c: 'base' }];
+  const passes = d.passes || [{ s: 1, f: B.flow ?? d.fl ?? 1, c: 'base' }];
   for (const P of passes) {
     const c = P.c === 'base' ? col : P.c === 'white' ? '#ffffff' : lerpHex(col, '#ffffff', 0.82), z = sz * P.s;
     ctx.globalAlpha = Math.min(1, P.f * (s.flowK || 1));
@@ -3898,7 +3989,7 @@ function libSegment(s, ctx, B, pt, sizeAt, final = false) {
     if (!s.last) { s.last = pt; s.rem = 0; return gb; }   // espera a saber hacia dónde va el trazo
     walkPath(pt, Math.max(0.8, s.size * 0.1), (x, y, q) => libBristle(s, ctx, B, x, y, sizeAt(q), s.dir || 0, R, gb), s);
   } else if (d.m === 'pixel') walkPath(pt, Math.max(1, Math.round(s.size / 5) * 0.7), (x, y, q) => libPixel(s, ctx, B, x, y, sizeAt(q), R, gb), s);
-  else walkPath(pt, Math.max(0.7, s.size * B.spacing), (x, y, q) => libDab(s, ctx, B, x, y, sizeAt(q), dir, R, gb), s);
+  else walkPath(pt, Math.max(0.7, s.size * B.spacing), (x, y, q) => { s.flowK = s.pressOp ? clamp(q.p, 0.04, 1) : 1; libDab(s, ctx, B, x, y, sizeAt(q), dir, R, gb); }, s);
   if (d.grain && gb[0] < Infinity) {   // el grano se aplica una vez por movimiento del dedo (no en cada sello)
     const G = s.gBox || (s.gBox = [Infinity, Infinity, -Infinity, -Infinity]);
     G[0] = Math.min(G[0], gb[0]); G[1] = Math.min(G[1], gb[1]); G[2] = Math.max(G[2], gb[2]); G[3] = Math.max(G[3], gb[3]);
@@ -3976,7 +4067,7 @@ function pickLibBrush(B) {
    cada hueso tiene su parte del dibujo, una articulación (●), una punta (○),
    un padre y sus claves (giro, posición, tamaño) en la línea de tiempo.
    ===================================================================== */
-const scene = { fps: 12, frames: 36, ease: true, onion: false, objects: [], audio: null, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true };
+const scene = { fps: 12, frames: 36, ease: true, onion: false, objects: [], audio: null, hold: {}, onionBefore: 2, onionAfter: 1, onionOpacity: 0.4, onionColor: true };
 let animMode = null;          // null = dibujar · 'rig' = armar huesos · 'anim' = animar
 let curF = 0, activeObjId = null, selBoneId = null, animTool = 'rot', showBones = true;
 let objSeq = 1, playing = false, playRaf = 0, poseOverride = null, poseClip = null, rrRaf = 0;
@@ -4732,6 +4823,7 @@ function drawTimeline() {
     const x = Math.round(X(f)), sec = f % scene.fps === 0;
     c.fillStyle = sec ? '#8a8a96' : '#3e3e48'; c.fillRect(x, sec ? 2 : 17, 1, sec ? TLR - 2 : TLR - 17);
     if ((f + 1) % every === 0 || f === 0) { c.fillStyle = '#9a9aa6'; c.fillText(String(f + 1), x + fw / 2, 9); }
+    if (holdOf(f) > 1) { c.fillStyle = '#ffd23f'; c.fillText('×' + holdOf(f), x + fw / 2, TLR - 7); }
   }
   c.textAlign = 'left';
   rows.forEach((r, i) => {
@@ -4813,8 +4905,33 @@ function drawTimeline() {
     if (!rows.length) { const d = document.createElement('div'); d.textContent = '—'; names.appendChild(d); }
     if (aud) { const d = document.createElement('div'); d.className = 'au'; d.textContent = '🔊 Sonido'; names.appendChild(d); }
   }
-  names.firstChild.textContent = `⏱ ${(curF / scene.fps).toFixed(1).replace('.', ',')} s`;
+  names.firstChild.textContent = `⏱ ${timeOf(curF).toFixed(1).replace('.', ',')} s`;
   $('fr-label').innerHTML = `${curF + 1}<small>de ${n}</small>`;
+}
+
+/* ---------- Duración de cada cuadro (×1 = un tiempo de la velocidad elegida) ---------- */
+const holdOf = f => Math.max(1, (scene.hold && scene.hold[f]) | 0 || 1);
+function timeOf(f) {   // en qué segundo empieza el cuadro f
+  let t = f; if (scene.hold) for (const k in scene.hold) if (+k < f) t += holdOf(+k) - 1;
+  return t / scene.fps;
+}
+const animLength = () => timeOf(scene.frames);
+function frameAtTime(t) {
+  let acc = 0; for (let f = 0; f < scene.frames; f++) { acc += holdOf(f) / scene.fps; if (t < acc) return f; }
+  return scene.frames - 1;
+}
+async function frameHoldDialog() {
+  const f = curF, cur = holdOf(f);
+  const v = await dialog({ title: `⏱ Duración del cuadro ${f + 1}`, text: `A ${scene.fps} cuadros por segundo, cada tiempo dura ${Math.round(1000 / scene.fps)} ms. Un cuadro más largo sirve para pausas, golpes o miradas.`, ok: null,
+    choices: [1, 2, 3, 4, 6, 8].map(k => ({ label: (k === cur ? '✓ ' : '') + '×' + k, sub: `${Math.round(k * 1000 / scene.fps)} ms`, value: String(k) }))
+      .concat([{ label: '↺ Todos a ×1', sub: 'quita las duraciones especiales', value: 'reset' }]) });
+  if (!v) return;
+  const before = JSON.stringify(scene.hold || {});
+  if (v === 'reset') scene.hold = {}; else { scene.hold = { ...(scene.hold || {}) }; if (+v === 1) delete scene.hold[f]; else scene.hold[f] = +v; }
+  const after = JSON.stringify(scene.hold);
+  const set = j => { scene.hold = JSON.parse(j); animChanged(); renderAnim(); };
+  set(after); pushHistory({ bytes: 0, undo() { set(before); }, redo() { set(after); } });
+  toast(v === 'reset' ? '⏱ Todos los cuadros duran lo mismo' : `⏱ Cuadro ${f + 1}: ×${v}`, 1500);
 }
 
 /* ---------- Reproducir ---------- */
@@ -4823,7 +4940,7 @@ function startAudioAt(f) {
   if (!scene.audio || !au.el) return; clearTimeout(au.timer);
   const st = scene.audio.start || 0, el = au.el; el.volume = clamp(scene.audio.vol ?? 1, 0, 1);
   const go = t => { try { el.currentTime = t; } catch (e) {} el.play().catch(() => {}); };
-  if (f >= st) go((f - st) / scene.fps); else { el.pause(); au.timer = setTimeout(() => go(0), (st - f) / scene.fps * 1000); }
+  if (f >= st) go(timeOf(f) - timeOf(st)); else { el.pause(); au.timer = setTimeout(() => go(0), (timeOf(st) - timeOf(f)) * 1000); }
 }
 function stopAudio() { clearTimeout(au.timer); if (au.el) au.el.pause(); }
 function startPlay(silent = false) {
@@ -4832,10 +4949,11 @@ function startPlay(silent = false) {
   if (!silent) startAudioAt(f0);
   const step = now => {
     if (!playing) return;
-    let f = f0 + Math.floor((now - t0) / 1000 * scene.fps);
+    const el = (now - t0) / 1000 + timeOf(f0);
+    let f = el >= animLength() ? scene.frames : frameAtTime(el);
     if (f >= scene.frames) {
       if (scene.loop === false && !silent) { curF = scene.frames - 1; stopPlay(); return; }
-      f0 = 0; t0 = now; f = 0; if (!silent) startAudioAt(0);
+      f0 = 0; t0 = now; f = 0; if (!silent) startAudioAt(0);   // vuelve a empezar
     }
     if (f !== curF) { curF = f; renderAnim(); }
     playRaf = requestAnimationFrame(step);
@@ -5002,26 +5120,27 @@ async function exportVideo() {
     src = ac.createBufferSource(); src.buffer = au.buf; g.gain.value = scene.audio.vol ?? 1;
     src.connect(g); g.connect(dest); dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
   }
-  const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+  const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=avc1', 'video/mp4;codecs=avc3', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
     .find(t => MediaRecorder.isTypeSupported(t)) || '';
+  const h264 = /avc/.test(mime);
   let rec; try { rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 5e6 } : undefined); }
   catch (e) { if (ac) ac.close(); return toast('No se pudo empezar a grabar el video'); }
   const chunks = []; rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   const stopped = new Promise(r => { rec.onstop = r; });
-  const total = scene.frames / scene.fps * 1000, card = $('mcard'), modal = $('modal');
+  const total = animLength() * 1000, card = $('mcard'), modal = $('modal');
   card.innerHTML = `<h3>🎞️ Creando el video…</h3><p class="hint">Se graba en tiempo real: tarda lo mismo que dura la animación (${(total / 1000).toFixed(1).replace('.', ',')} s).</p>
     <div class="prog"><div id="prog-bar"></div></div><div class="mbtns"><button id="vid-cancel">Cancelar</button></div>`;
   modal.classList.add('open');
   let cancelled = false; closeModal = () => { cancelled = true; };
   card.querySelector('#vid-cancel').onclick = () => { cancelled = true; };
   rec.start(250);
-  if (ac) { try { await ac.resume(); } catch (e) {} src.start(ac.currentTime + (scene.audio.start || 0) / scene.fps); }
+  if (ac) { try { await ac.resume(); } catch (e) {} src.start(ac.currentTime + timeOf(scene.audio.start || 0)); }
   const t0 = performance.now();
   await new Promise(res => {
     let lastF = -1;
     const step = now => {
       const el = now - t0; if (cancelled || el >= total) return res();
-      const f = Math.min(scene.frames - 1, Math.floor(el / 1000 * scene.fps));
+      const f = frameAtTime(el / 1000);
       if (f !== lastF) { draw(f); lastF = f; }
       const pb = $('prog-bar'); if (pb) pb.style.width = (el / total * 100).toFixed(1) + '%';
       requestAnimationFrame(step);
@@ -5036,36 +5155,113 @@ async function exportVideo() {
   if (cancelled) return toast('Video cancelado');
   const type = (mime || 'video/webm').split(';')[0], ext = type.includes('mp4') ? 'mp4' : 'webm';
   await shareOrDownload(new Blob(chunks, { type }), `animacion_${stamp()}.${ext}`, type);
+  if (!h264) setTimeout(() => toast('ℹ️ Este equipo grabó el video en formato VP9/WebM: se ve en Android y en la PC, pero algunos iPhone o editores no lo abren. Para compartir en todos lados, usá también el GIF.', 6000), 2600);
+}
+// ---- Archivo ZIP simple (para la secuencia de PNG y la hoja de sprites con datos) ----
+let crcTable = null;
+function crc32(u8) {
+  if (!crcTable) { crcTable = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcTable[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcTable[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files) {   // files: [{ name, data: Uint8Array }]
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  const le = (n, b) => { const a = []; for (let i = 0; i < b; i++) a.push((n >>> (8 * i)) & 255); return a; };
+  for (const f of files) {
+    const nm = enc.encode(f.name), crc = crc32(f.data), sz = f.data.length;
+    const head = new Uint8Array([0x50, 0x4b, 3, 4, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...le(crc, 4), ...le(sz, 4), ...le(sz, 4), ...le(nm.length, 2), 0, 0]);
+    parts.push(head, nm, f.data);
+    central.push(new Uint8Array([0x50, 0x4b, 1, 2, 20, 0, 20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0, ...le(crc, 4), ...le(sz, 4), ...le(sz, 4), ...le(nm.length, 2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...le(off, 4)]), nm);
+    off += head.length + nm.length + sz;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const end = new Uint8Array([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...le(files.length, 2), ...le(files.length, 2), ...le(cdSize, 4), ...le(off, 4), 0, 0]);
+  return new Blob([...parts, ...central, end], { type: 'application/zip' });
+}
+async function canvasBytes(c) { return new Uint8Array(await (await canvasToBlob(c)).arrayBuffer()); }
+// Un cuadro de la animación entero (capas + objetos + historieta) a un tamaño dado
+function renderFrameTo(x, f, fw, fh, ox = 0, oy = 0) {
+  x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawLayersAt(x, f);
+  drawObjects(x, f, new DOMMatrix([fw / W, 0, 0, fh / H, ox, oy]));
+  x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawComic(x); x.setTransform(1, 0, 0, 1, 0, 0);
+}
+// Secuencia de PNG: un archivo por cuadro, todo en un ZIP (para editores de video, Godot, Unity…)
+async function exportPNGSequence() {
+  if (xform) commitTransform();
+  stopPlay();
+  if (!hasAnimation()) return toast('Primero animá algo: tocá 🎬 Animar arriba');
+  const opts = pixelMode ? [1, 2, 4, 8].filter(v => v === 1 || Math.max(W, H) * v <= 4096).map(v => ({ label: `×${v}`, sub: `${W * v} × ${H * v} px`, value: String(v) }))
+    : [[1, 'Tamaño real'], [0.5, 'Mitad']].map(([v, n]) => ({ label: n, sub: `${Math.round(W * v)} × ${Math.round(H * v)} px`, value: String(v) }));
+  const pick = await dialog({ title: '🖼️ Secuencia de PNG', text: `${scene.frames} imágenes, una por cuadro, dentro de un archivo ZIP. Si querés fondo transparente, ocultá la capa Fondo antes.`, ok: null, choices: opts });
+  if (!pick) return;
+  const k = +pick, fw = Math.max(1, Math.round(W * k)), fh = Math.max(1, Math.round(H * k));
+  await refreshComicCache();
+  const card = $('mcard'), modal = $('modal');
+  card.innerHTML = `<h3>🖼️ Armando las imágenes…</h3><p class="hint" id="seq-st"></p><div class="prog"><div id="prog-bar"></div></div>`;
+  modal.classList.add('open');
+  const files = [], c = makeCanvas(fw, fh), x = c.getContext('2d'); x.imageSmoothingEnabled = !pixelMode;
+  const pad = String(scene.frames).length + 1, frames = [];
+  for (let f = 0; f < scene.frames; f++) {
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, fw, fh); renderFrameTo(x, f, fw, fh);
+    const name = `cuadro_${String(f + 1).padStart(pad, '0')}.png`;
+    files.push({ name, data: await canvasBytes(c) }); frames.push({ file: name, ms: Math.round(holdOf(f) * 1000 / scene.fps) });
+    const pb = $('prog-bar'); if (pb) pb.style.width = ((f + 1) / scene.frames * 100).toFixed(1) + '%';
+    const st = $('seq-st'); if (st) st.textContent = `Cuadro ${f + 1} de ${scene.frames}`;
+  }
+  files.push({ name: 'animacion.json', data: new TextEncoder().encode(JSON.stringify({ app: "Toker's", fps: scene.fps, loop: scene.loop !== false, width: fw, height: fh, frames }, null, 1)) });
+  modal.classList.remove('open');
+  await shareOrDownload(makeZip(files), `${safeName(curProject && curProject.name)}_cuadros_${stamp()}.zip`, 'application/zip');
 }
 // Hoja de sprites: todos los cuadros en una sola imagen (para usar en juegos, por ejemplo en Godot)
 async function exportSprites() {
   if (xform) commitTransform();
   stopPlay();
-  const n = scene.frames;
-  let k = 1;
-  if (pixelMode) {
-    const cols0 = Math.min(n, 8), rows0 = Math.ceil(n / cols0);
-    const opts = [1, 2, 4, 8].filter(v => v === 1 || (W * v * cols0 <= 8192 && H * v * rows0 <= 8192));
-    const v = await dialog({ title: '🧱 Hoja de sprites', text: `${n} cuadros de ${W} × ${H} px. ¿De qué tamaño cada cuadro?`,
-      choices: opts.map(v => ({ label: `×${v}`, sub: `${W * v} × ${H * v} px por cuadro`, value: String(v) })), ok: null });
-    if (!v) return; k = +v;
-  }
+  const n = scene.frames, card = $('mcard'), modal = $('modal');
+  const st = { cols: Math.min(n, 8), pad: 0, k: 1, data: false };
+  const scales = pixelMode ? [1, 2, 4, 8] : [1, 0.5, 0.25];
+  card.innerHTML = `<h3>🧱 Hoja de sprites</h3><p class="hint">${n} cuadros de ${W} × ${H} px en una sola imagen, para juegos (Godot, Unity, GameMaker…).</p>
+    <div class="ptitle">Columnas</div><div class="seg" id="sp-cols"></div>
+    <div class="ptitle">Separación entre cuadros</div><div class="seg" id="sp-pad"></div>
+    <div class="ptitle">Tamaño de cada cuadro</div><div class="seg" id="sp-k"></div>
+    <label class="check"><input type="checkbox" id="sp-data"> Incluir archivo de datos (.json con la posición y la duración de cada cuadro, todo en un ZIP)</label>
+    <p class="hint" id="sp-info"></p>
+    <div class="mbtns"><button id="sp-cancel">Cancelar</button><button class="primary" id="sp-ok">Exportar</button></div>`;
+  const q = id => card.querySelector('#' + id);
+  const colOpts = [...new Set([n, 8, 6, 4, 2, 1].filter(v => v <= n))];
+  const fill = (id, vals, key, label) => vals.forEach(v => { const b = document.createElement('button'); b.textContent = label(v); b.dataset.v = v; b.onclick = () => { st[key] = v; upd(); }; q(id).appendChild(b); });
+  fill('sp-cols', colOpts, 'cols', v => v === n ? 'Una fila' : v === 1 ? 'Una columna' : String(v));
+  fill('sp-pad', [0, 1, 2, 4, 8], 'pad', v => v + ' px');
+  fill('sp-k', scales, 'k', v => pixelMode ? '×' + v : Math.round(v * 100) + ' %');
+  const dims = () => { const cols = st.cols, rows = Math.ceil(n / cols), fw = Math.max(1, Math.round(W * st.k)), fh = Math.max(1, Math.round(H * st.k));
+    return { cols, rows, fw, fh, sw: cols * fw + (cols + 1) * st.pad, sh: rows * fh + (rows + 1) * st.pad }; };
+  const upd = () => {
+    ['cols', 'pad', 'k'].forEach(key => card.querySelectorAll(`#sp-${key} button`).forEach(b => b.classList.toggle('on', +b.dataset.v === st[key])));
+    const d = dims(); q('sp-info').textContent = `Imagen final: ${d.sw} × ${d.sh} px (${d.cols} columnas, ${d.rows} fila${d.rows === 1 ? '' : 's'})` + (Math.max(d.sw, d.sh) > 8192 ? ' · es muy grande: elegí más columnas o un tamaño menor' : '');
+    q('sp-ok').disabled = Math.max(d.sw, d.sh) > 8192;
+  };
+  upd();
+  const go = await new Promise(res => {
+    const close = v => { modal.classList.remove('open'); closeModal = null; res(v); };
+    closeModal = () => close(false); q('sp-cancel').onclick = () => close(false);
+    q('sp-ok').onclick = () => { st.data = q('sp-data').checked; close(true); };
+    modal.classList.add('open');
+  });
+  if (!go) return;
   await refreshComicCache();
-  const cols = Math.min(n, 8), rows = Math.ceil(n / cols);
-  let sc = Math.min(k, 8192 / (W * cols), 8192 / (H * rows));
-  if (pixelMode && sc >= 1) sc = Math.floor(sc);
-  const fw = Math.max(1, Math.round(W * sc)), fh = Math.max(1, Math.round(H * sc));
-  const sheet = makeCanvas(fw * cols, fh * rows), x = sheet.getContext('2d'); x.imageSmoothingEnabled = !pixelMode;
+  const d = dims(), sheet = makeCanvas(d.sw, d.sh), x = sheet.getContext('2d'); x.imageSmoothingEnabled = !pixelMode;
+  const frames = [];
   for (let f = 0; f < n; f++) {
-    const ox = (f % cols) * fw, oy = Math.floor(f / cols) * fh;
-    x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawLayersAt(x, f);
-    drawObjects(x, f, new DOMMatrix([fw / W, 0, 0, fh / H, ox, oy]));
-    x.setTransform(fw / W, 0, 0, fh / H, ox, oy); drawComic(x);
+    const ox = st.pad + (f % d.cols) * (d.fw + st.pad), oy = st.pad + Math.floor(f / d.cols) * (d.fh + st.pad);
+    renderFrameTo(x, f, d.fw, d.fh, ox, oy);
+    frames.push({ frame: f + 1, x: ox, y: oy, w: d.fw, h: d.fh, ms: Math.round(holdOf(f) * 1000 / scene.fps) });
   }
-  x.setTransform(1, 0, 0, 1, 0, 0);
-  try { await shareOrDownload(await canvasToBlob(sheet), `sprites_${n}cuadros_${fw}x${fh}_${stamp()}.png`, 'image/png'); }
-  catch (e) { return toast('No se pudo crear la hoja de sprites'); }
-  toast(`🧱 ${n} cuadros de ${fw} × ${fh} px, en ${cols} columnas y ${rows} fila${rows === 1 ? '' : 's'}. Si no querés el fondo, ocultá la capa Fondo antes.`, 5000);
+  const base = `sprites_${n}cuadros_${d.fw}x${d.fh}_${stamp()}`;
+  try {
+    if (st.data) {
+      const json = { app: "Toker's", image: base + '.png', size: { w: d.sw, h: d.sh }, frameSize: { w: d.fw, h: d.fh }, columns: d.cols, rows: d.rows, padding: st.pad, fps: scene.fps, loop: scene.loop !== false, frames };
+      await shareOrDownload(makeZip([{ name: base + '.png', data: await canvasBytes(sheet) }, { name: base + '.json', data: new TextEncoder().encode(JSON.stringify(json, null, 1)) }]), base + '.zip', 'application/zip');
+    } else await shareOrDownload(await canvasToBlob(sheet), base + '.png', 'image/png');
+  } catch (e) { return toast('No se pudo crear la hoja de sprites'); }
+  toast(`🧱 ${n} cuadros de ${d.fw} × ${d.fh} px, en ${d.cols} columnas y ${d.rows} fila${d.rows === 1 ? '' : 's'}. Si no querés el fondo, ocultá la capa Fondo antes.`, 5000);
 }
 
 /* ---------- Guardar y abrir la escena ---------- */
@@ -5086,7 +5282,7 @@ async function sceneToData(forFile) {
     const a = scene.audio; audio = { name: a.name, start: a.start || 0, vol: a.vol ?? 1 };
     if (forFile) audio.url = `data:${a.blob.type || 'audio/webm'};base64,` + await blobToBase64(a.blob); else audio.blob = a.blob;
   }
-  return { fps: scene.fps, frames: scene.frames, ease: scene.ease, onion: scene.onion, loop: scene.loop !== false, curF, objSeq, objects, audio, persp: scene.persp && scene.persp.mode ? JSON.parse(JSON.stringify(scene.persp)) : null, comic: hasComic() ? JSON.parse(comicSnap()) : null,
+  return { fps: scene.fps, frames: scene.frames, hold: scene.hold || {}, ease: scene.ease, onion: scene.onion, loop: scene.loop !== false, curF, objSeq, objects, audio, persp: scene.persp && scene.persp.mode ? JSON.parse(JSON.stringify(scene.persp)) : null, comic: hasComic() ? JSON.parse(comicSnap()) : null,
     onionBefore: scene.onionBefore, onionAfter: scene.onionAfter, onionOpacity: scene.onionOpacity, onionColor: scene.onionColor };
 }
 function resetScene(silent) {
@@ -5101,7 +5297,7 @@ function resetScene(silent) {
 async function loadSceneData(d, fromFile) {
   resetScene(true);
   if (d) {
-    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.ease = d.ease !== false; scene.onion = !!d.onion; scene.loop = d.loop !== false; scene.persp = d.persp || null;
+    scene.fps = d.fps || 12; scene.frames = clamp(d.frames || 36, 1, 3600); scene.hold = d.hold && typeof d.hold === 'object' ? { ...d.hold } : {}; scene.ease = d.ease !== false; scene.onion = !!d.onion; scene.loop = d.loop !== false; scene.persp = d.persp || null;
     scene.onionBefore = d.onionBefore ?? 2; scene.onionAfter = d.onionAfter ?? 1; scene.onionOpacity = d.onionOpacity ?? 0.4; scene.onionColor = d.onionColor !== false;
     curF = clamp(d.curF | 0, 0, scene.frames - 1);
     for (const od of d.objects || []) {
@@ -5146,6 +5342,7 @@ function setupAnimUI() {
   $('an-cfg').onclick = animSettings;
   $('an-size').onclick = () => { settings.tlBig = !settings.tlBig; saveSettings(); document.body.classList.toggle('tl-big', settings.tlBig); updateDock();
     requestAnimationFrame(() => { if (resizeHandler) resizeHandler(); requestRender(); }); };
+  $('an-hold').onclick = () => frameHoldDialog();
   $('an-addf').onclick = () => addFrame(false); $('an-dupf').onclick = () => addFrame(true); $('an-delf').onclick = delFrame;
   $('an-animlayer').onclick = actAnimLayer;
   $('an-newlayer').onclick = addAnimLayerAbove; $('an-mkobj').onclick = () => convertDialog(false);
@@ -5156,7 +5353,7 @@ function setupAnimUI() {
   $('an-key').onclick = addKeyNow; $('an-unkey').onclick = delKeyNow;
   $('an-copy').onclick = copyPose; $('an-paste').onclick = pastePose;
   $('an-bones').onclick = () => { showBones = !showBones; renderAnim(); updateDock(); };
-  $('an-sound').onclick = soundMenu; $('an-video').onclick = exportVideo; $('an-sprites').onclick = exportSprites; $('an-gif').onclick = exportGIF; $('an-lib').onclick = openLibrary;
+  $('an-sound').onclick = soundMenu; $('an-video').onclick = exportVideo; $('an-sprites').onclick = exportSprites; $('an-pngseq').onclick = exportPNGSequence; $('an-gif').onclick = exportGIF; $('an-lib').onclick = openLibrary;
   // línea de tiempo: tocar elige el cuadro; arrastrar un dibujo o una clave la corre de lugar
   const cv = $('tl-canvas');
   const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width }; };
@@ -5346,11 +5543,11 @@ async function stopAnimLayer(l) {
 
 /* ---------- Agregar, duplicar, quitar y mover cuadros ---------- */
 function tlSnap() {
-  return { frames: scene.frames, start: scene.audio ? scene.audio.start : 0,
+  return { frames: scene.frames, start: scene.audio ? scene.audio.start : 0, hold: { ...(scene.hold || {}) },
     cells: animLayers().map(l => [l, new Map(l.cells)]), objs: scene.objects.map(o => [o, objState(o)]) };
 }
 function tlApply(s, f) {
-  scene.frames = s.frames; if (scene.audio) scene.audio.start = s.start;
+  scene.frames = s.frames; if (scene.audio) scene.audio.start = s.start; scene.hold = { ...(s.hold || {}) };
   s.cells.forEach(([l, m]) => { if (l.anim) l.cells = new Map(m); });
   s.objs.forEach(([o, st]) => applyObjState(o, st));
   curF = clamp(f, 0, scene.frames - 1); syncCells(); layers.forEach(l => { if (l.anim) updateThumb(l); }); animChanged(); renderAnim();
@@ -5361,6 +5558,7 @@ function tlCommit(before, fromF) {
 }
 function shiftTimeline(from, d) {          // corre todo lo que está en el cuadro «from» o después
   animLayers().forEach(l => { const m = new Map(); for (const [k, c] of l.cells) m.set(k >= from ? k + d : k, c); l.cells = m; });
+  if (scene.hold) { const h = {}; for (const k in scene.hold) { const f = +k; if (f >= from) { if (f + d >= 0) h[f + d] = scene.hold[k]; } else h[f] = scene.hold[k]; } scene.hold = h; }
   scene.objects.forEach(o => o.bones.forEach(b => b.keys.forEach(k => { if (k.f >= from) k.f += d; })));
   if (scene.audio && (scene.audio.start || 0) >= from) scene.audio.start = Math.max(0, scene.audio.start + d);
 }
@@ -5385,6 +5583,7 @@ async function delFrame() {
   if (lockedHere) return toast(`🔒 «${lockedHere.name}» tiene un dibujo en este cuadro y está bloqueada`, 2600);
   const before = tlSnap(), f0 = curF;
   animLayers().forEach(l => l.cells.delete(curF));
+  if (scene.hold) delete scene.hold[curF];
   scene.objects.forEach(o => o.bones.forEach(b => { b.keys = b.keys.filter(k => k.f !== curF); }));
   shiftTimeline(curF + 1, -1); scene.frames--; curF = clamp(curF, 0, scene.frames - 1);
   syncCells(); animChanged(); renderAnim(); tlCommit(before, f0);
@@ -5490,6 +5689,9 @@ function doFill(p) {
     }
   }
   const tmp = makeCanvas(w, h); tmp.getContext('2d').putImageData(out, 0, 0);
+  if (settings.fillPattern && settings.fillPattern !== 'none' && !pixelMode) {   // relleno con patrón (alineado a la hoja)
+    const tx = tmp.getContext('2d'); tx.globalCompositeOperation = 'destination-in'; tx.translate(-x0, -y0); tx.fillStyle = grainTile(settings.fillPattern); tx.fillRect(x0, y0, w, h);
+  }
   pushHistory(editRegion(layer, { x: x0, y: y0, w, h }, () => {
     layer.ctx.save();
     if (selection) layer.ctx.clip(selection.path, selection.rule);
@@ -5829,6 +6031,9 @@ function renderBrushTypes() {
   $('chk-pxfill').checked = !!settings.pxFill;
   updateDynUI();
   $('custom-sec').hidden = pixelMode || settings.tool !== 'custom';
+  $('grad-sec').hidden = pixelMode || settings.tool !== 'gradient';
+  document.querySelectorAll('[data-gk]').forEach(b => b.classList.toggle('on', b.dataset.gk === (settings.gradKind || 'linear')));
+  renderLibAdjust();
 }
 // Forma del trazo: muestra y edita las puntas del pincel elegido
 const DYN_PRESETS = [['Parejo', 0, 0, 0], ['Entintado', 0.3, 0.5, 0.4], ['Puntas finas', 0.7, 0.8, 0], ['Rápido = fino', 0, 0.15, 0.85]];
@@ -6076,6 +6281,8 @@ function showHelp() {
     <li>Las barritas de la izquierda cambian el <b>tamaño</b> (arriba, en px) y la <b>opacidad</b> (abajo, en %). El circulito del medio abre todas las opciones.</li>
     <li><b>📚 Capas, lo nuevo:</b> <b>🌗 Fusión</b> mezcla la capa con lo de abajo (Multiplicar para sombras, Trama y Añadir para luces, Superponer, Color…). <b>▦ Bloq. alfa</b> hace que el pincel pinte solo encima de lo ya dibujado en esa capa (para sombrear sin salirte). <b>🎭 Máscara</b> oculta sin borrar: el pincel oculta, el borrador vuelve a mostrar; tocá la miniatura negra o la del dibujo para elegir qué pintás.</li>
     <li><b>📐 Formas y curvas:</b> en 🖌️ Pincel › <b>Dibujar como</b> elegís línea, rectángulo, elipse o <b>curva</b> (se dobla con dos manijas y se confirma con ✓). Al <b>mover una selección</b> están 🕸️ <b>Malla</b> para doblar el dibujo y ⇅ espejo vertical. En 📐 (arriba a la derecha) hay <b>cuadrícula</b> y <b>regla</b> con imán.</li>
+    <li><b>🎬 Animación, lo nuevo:</b> <b>⏱ Duración</b> hace que un cuadro dure ×2, ×3… (pausas y golpes); se respeta al reproducir, en el GIF y en el video. <b>🗂️ PNG</b> exporta un archivo por cuadro en un ZIP, y la <b>hoja de sprites</b> deja elegir columnas, separación, tamaño y un archivo de datos para juegos.</li>
+    <li><b>🖌️ Pinceles, lo nuevo:</b> los de la biblioteca se ajustan (separación, giro, dispersión, variación y carga) y se vuelven a como venían con ↺. En ⭐ Mis pinceles podés <b>exportarlos e importarlos</b>. El degradado puede ser <b>radial</b>, el balde rellena con <b>patrones</b> y la presión del lápiz puede cambiar también la <b>opacidad</b>.</li>
     <li><b>● Color:</b> círculo cromático, paletas (también retro para pixel art), mezclador y transiciones.</li>
     <li><b>👾 Pixel art:</b> en 🏠 Mis proyectos → Pixel art. Lápiz de píxeles, cuadrícula, simetría y exportación agrandada.</li>
     <li><b>🎬 Cuadro a cuadro:</b> cada cuadro tiene su dibujo; <b>＋ Cuadro</b> agrega el siguiente y la <b>🧅 cebolla</b> muestra lo anterior en rojo y lo siguiente en verde.</li>
@@ -6186,7 +6393,7 @@ async function exportGIF() {
       if (cancelled) break;
       const d = frame(f), idx = new Uint8Array(gw * gh);
       for (let i = 0, j = 0; i < d.length; i += 4, j++) idx[j] = (ti >= 0 && d[i + 3] < 128) ? ti : nearest(d[i], d[i + 1], d[i + 2]);
-      const tNow = Math.round((f + 1) * 100 / scene.fps), delay = Math.max(2, tNow - tPrev); tPrev = tNow;
+      const tNow = Math.round(timeOf(f + 1) * 100), delay = Math.max(2, tNow - tPrev); tPrev = tNow;
       out.push(0x21, 0xF9, 4, (ti >= 0 ? 1 : 0) | (ti >= 0 ? 8 : 4), delay & 255, delay >> 8, ti >= 0 ? ti : 0, 0);
       out.push(0x2C); u16(0); u16(0); u16(gw); u16(gh); out.push(0);
       const mc = Math.max(2, bitsP); out.push(mc);
@@ -6260,6 +6467,7 @@ function tryQuickShape(s) {
 }
 // Formas elegidas en el panel del pincel: el trazo sale como línea, rectángulo, elipse o curva
 const SHAPE_NAMES = { line: '╱ Línea', rect: '▭ Rectángulo', ellipse: '◯ Elipse', curve: '∿ Curva' };
+function updateFillPatUI() { document.querySelectorAll('[data-fp]').forEach(b => b.classList.toggle('on', b.dataset.fp === (settings.fillPattern || 'none'))); }
 function setShapeMode(m) {
   settings.shapeMode = m; saveSettings(); updateShapeUI();
   if (m !== 'free') toast(`${SHAPE_NAMES[m]}: arrastrá de una punta a la otra` + (m === 'curve' ? '; después doblala con las manijas' : ''), 2600);
@@ -7070,7 +7278,14 @@ function setupUI() {
   $('brush-new').onclick = () => openBrushEditor();
   document.querySelectorAll('[data-shp]').forEach(b => b.onclick = () => setShapeMode(b.dataset.shp));
   $('cv-done').onclick = commitCurve; $('cv-cancel').onclick = cancelCurve;
-  $('blib-open').onclick = openBrushLibrary; $('blib-close').onclick = closeBrushLibrary;
+  $('blib-open').onclick = openBrushLibrary;
+  $('brush-export').onclick = exportBrushes; $('brush-import').onclick = importBrushes;
+  $('libadj-reset').onclick = () => { const B = currentBrush(); if (!B || !B.lib) return; settings.bparams = { ...(settings.bparams || {}) }; delete settings.bparams[B.id]; applyLibParams(B);
+    [...libPrevCache.keys()].forEach(key => { if (key.startsWith(B.id)) libPrevCache.delete(key); }); saveSettings(); renderLibAdjust(); toast('↺ Pincel como venía', 1200); };
+  document.querySelectorAll('[data-gk]').forEach(b => b.onclick = () => { settings.gradKind = b.dataset.gk; saveSettings(); renderBrushTypes(); });
+  document.querySelectorAll('[data-fp]').forEach(b => b.onclick = () => { settings.fillPattern = b.dataset.fp; saveSettings(); updateFillPatUI(); if (b.dataset.fp !== 'none') toast('🪣 El balde va a rellenar con ese patrón', 1800); });
+  $('chk-pressop').checked = !!settings.pressureOp; $('chk-pressop').onchange = e => { settings.pressureOp = e.target.checked; saveSettings(); };
+  updateFillPatUI(); $('blib-close').onclick = closeBrushLibrary;
   $('blib').addEventListener('click', e => { if (e.target.id === 'blib') closeBrushLibrary(); });
   $('brush-edit').onclick = () => { const B = currentBrush(); if (B && !B.builtin) openBrushEditor(B); };
   $('brush-del').onclick = deleteBrush;
@@ -7167,7 +7382,7 @@ function setupUI() {
     pcfolder: () => PC && PC.openDataFolder(), pcfull: () => PC && PC.toggleFullScreen(),
     intro: () => { settings.introVideo = !settings.introVideo; saveSettings(); updateIntroLabel();
       toast(settings.introVideo ? 'El video se va a ver al abrir la app' : 'La app va a abrir solo con el logo'); },
-    lib: openLibrary, size: resizeCanvasDialog, fit: fitView, flip: flipView, video: exportVideo, sprites: exportSprites, gif: exportGIF,
+    lib: openLibrary, size: resizeCanvasDialog, fit: fitView, flip: flipView, video: exportVideo, sprites: exportSprites, gif: exportGIF, pngseq: exportPNGSequence,
     crop: () => { if (animMode) setAnimMode(null); setTool('select'); toast(selection ? 'Tocá ⛶ Recortar lienzo' : 'Marcá con el dedo la zona que querés conservar y tocá ⛶ Recortar lienzo', 3500); } };
   document.querySelectorAll('.mitem').forEach(b => b.onclick = () => { closePanels(); menu[b.dataset.menu](); });
   $('file-image').onchange = e => { importImageFile(e.target.files[0]); e.target.value = ''; };
