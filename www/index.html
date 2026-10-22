@@ -605,6 +605,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
       <button data-xa="persp" id="xa-persp"><span>⬚</span>Perspectiva</button>
       <button data-xa="mesh" id="xa-mesh"><span>🕸️</span>Malla</button>
       <button data-xa="flipv"><span>⇅</span>Espejo vert.</button>
+      <button data-xa="exact"><span>🔢</span>Exacto</button>
       <button data-xa="smaller"><span>−</span>Achicar</button>
       <button data-xa="bigger"><span>+</span>Agrandar</button>
       <button data-xa="cancel"><span>✕</span>Cancelar</button>
@@ -821,6 +822,7 @@ body.at-home #toolbar,body.at-home #stage{visibility:hidden}
         <div class="field nopix"><label>Fuerza del difuminado 👆 <b id="smudge-val">60%</b></label><input type="range" id="smudge-range" min="10" max="100"></div>
         <label class="check nopix"><input type="checkbox" id="chk-pressure"> La presión del lápiz cambia el grosor</label>
         <label class="check nopix"><input type="checkbox" id="chk-pressop"> La presión del lápiz también cambia la opacidad</label>
+        <label class="check nopix"><input type="checkbox" id="chk-tilt"> Inclinar el lápiz ensancha el trazo (para sombrear de costado)</label>
         <label class="check"><input type="checkbox" id="chk-penonly"> Dibujar solo con lápiz (los dedos mueven el lienzo)</label>
         <div class="sep"></div>
         <div class="ptitle">Balde de relleno</div>
@@ -1055,7 +1057,7 @@ const DEFAULTS = { tool:'brush', color:'#1a1a1a', size:15, opacity:1, smoothing:
   penOnly:false, penAsked:false, tolerance:32, sampleAll:true, recent:[], smudge:0.6,
   mixA:'#2f6fde', mixB:'#ffd23f', mixMode:'paint', mixT:50, selMode:'rect', tab:'color',
   colorMode:'solid', transLen:600, introVideo:true, customBrushId:'b-salpicado',
-  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard', shapeMode:'free', gradKind:'linear', fillPattern:'none', pressureOp:false, bparams:{} };
+  brushType:'brush', dyn:{}, sym:'none', pxFill:false, pxTool:'brush', quickShape:true, pixGrid:true, mirror:'none', cellMode:'copy', palette:'Básica', pixSize:1, normSize:15, tlBig:false, eraseKind:'hard', shapeMode:'free', tiltSize:false, gradKind:'linear', fillPattern:'none', pressureOp:false, bparams:{} };
 const settings = Object.assign({}, DEFAULTS, (() => {
   try { return JSON.parse(localStorage.getItem('tokers.settings') || '{}'); } catch (e) { return {}; }
 })());
@@ -2752,6 +2754,22 @@ function quadCorner(p) {   // ¿tocó una esquina? (en píxeles de pantalla)
   xform.quad.forEach(([a, b], i) => { const q = view.transformPoint({ x: a, y: b }), d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = i; } });
   return best;
 }
+// Girar y cambiar el tamaño con números
+function exactTransform() {
+  if (!xform) return;
+  const card = $('mcard'), modal = $('modal');
+  card.innerHTML = `<h3>🔢 Girar y cambiar el tamaño</h3>
+    <div class="field"><label>Girar (grados, + a la derecha)</label><input type="number" id="ex-rot" value="0" step="1" inputmode="decimal"></div>
+    <div class="field"><label>Tamaño (% del actual)</label><input type="number" id="ex-sc" value="100" min="1" max="1000" step="1" inputmode="decimal"></div>
+    <div class="mbtns"><button id="ex-cancel">Cancelar</button><button class="primary" id="ex-ok">Aplicar</button></div>`;
+  const q = id => card.querySelector('#' + id), close = () => { modal.classList.remove('open'); closeModal = null; };
+  closeModal = close; q('ex-cancel').onclick = close;
+  q('ex-ok').onclick = () => {
+    const r = parseFloat(String(q('ex-rot').value).replace(',', '.')) || 0, k = clamp((parseFloat(String(q('ex-sc').value).replace(',', '.')) || 100) / 100, 0.01, 10);
+    close(); if (r || k !== 1) xformAround(m => m.rotate(r).scale(k, k));
+  };
+  modal.classList.add('open'); setTimeout(() => q('ex-rot').select(), 50);
+}
 function toggleMesh() {
   const x = xform; if (!x) return;
   if (pixelMode) return toast('La malla no está en pixel art (doblaría los píxeles)', 2400);
@@ -3103,6 +3121,9 @@ function strokeMove(p, ev) {
       s.vel = s.vel == null ? v : s.vel * 0.75 + v * 0.25; }
     s.prevScr = { x: p.x, y: p.y }; s.prevT = t;
     vf = 1 - s.dyn.speed * 0.75 * clamp(((s.vel || 0) - 0.2) / 2.2, 0, 1);
+  }
+  if (settings.tiltSize && ev.pointerType === 'pen' && !pixelMode) {
+    const t = clamp(Math.hypot(ev.tiltX || 0, ev.tiltY || 0) / 60, 0, 1); vf *= 1 + 1.5 * t;
   }
   const raw = { x: c.x, y: c.y, p: pr, v: vf };
   s.lastRaw = raw;
@@ -7284,6 +7305,7 @@ function setupUI() {
     [...libPrevCache.keys()].forEach(key => { if (key.startsWith(B.id)) libPrevCache.delete(key); }); saveSettings(); renderLibAdjust(); toast('↺ Pincel como venía', 1200); };
   document.querySelectorAll('[data-gk]').forEach(b => b.onclick = () => { settings.gradKind = b.dataset.gk; saveSettings(); renderBrushTypes(); });
   document.querySelectorAll('[data-fp]').forEach(b => b.onclick = () => { settings.fillPattern = b.dataset.fp; saveSettings(); updateFillPatUI(); if (b.dataset.fp !== 'none') toast('🪣 El balde va a rellenar con ese patrón', 1800); });
+  $('chk-tilt').checked = !!settings.tiltSize; $('chk-tilt').onchange = e => { settings.tiltSize = e.target.checked; saveSettings(); };
   $('chk-pressop').checked = !!settings.pressureOp; $('chk-pressop').onchange = e => { settings.pressureOp = e.target.checked; saveSettings(); };
   updateFillPatUI(); $('blib-close').onclick = closeBrushLibrary;
   $('blib').addEventListener('click', e => { if (e.target.id === 'blib') closeBrushLibrary(); });
@@ -7339,7 +7361,7 @@ function setupUI() {
   document.querySelectorAll('[data-sa]').forEach(b => b.onclick = () => selActs[b.dataset.sa]());
   const xActs = { rot: () => xformAround(m => m.rotate(90)), flip: () => xformAround(m => m.scale(-1, 1)),
     smaller: () => xformAround(m => m.scale(0.9, 0.9)), bigger: () => xformAround(m => m.scale(1.1, 1.1)),
-    persp: togglePerspective, mesh: toggleMesh, flipv: () => xformAround(m => m.scale(1, -1)),
+    persp: togglePerspective, mesh: toggleMesh, flipv: () => xformAround(m => m.scale(1, -1)), exact: exactTransform,
     cancel: () => { cancelTransform(); updateBars(); }, ok: () => { commitTransform(); updateBars(); } };
   document.querySelectorAll('[data-xa]').forEach(b => b.onclick = () => xActs[b.dataset.xa]());
 
