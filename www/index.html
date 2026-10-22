@@ -925,7 +925,8 @@ function paintPage(x, dpr) {
 function drawScreen() {
   scrRaf = 0;
   if (!screenCv || document.body.classList.contains('at-home')) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  // pantalla a 2× como máximo: en teléfonos de 3× se ve igual de nítido y mueve menos de la mitad de píxeles
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const cw = Math.max(1, Math.round(viewport.clientWidth * dpr)), ch = Math.max(1, Math.round(viewport.clientHeight * dpr));
   if (screenCv.width !== cw || screenCv.height !== ch) { screenCv.width = cw; screenCv.height = ch; scrCache = null; }
   const M = new DOMMatrix().scale(dpr, dpr).multiply(view), k = viewScale() * dpr, x = scx;
@@ -933,19 +934,30 @@ function drawScreen() {
   const els = screenEls();
   if (stroke && !stroke.clipped && !needsGroup(folderById(layers[activeIndex] && layers[activeIndex].folder))) {
     // mientras se dibuja: lo de abajo y lo de arriba quedan guardados; solo se repinta la capa activa y el trazo
-    const za = activeIndex * 3 + 1, key = stroke;
+    // si el trazo no toca la capa hasta soltar (pincel común), la capa activa también queda guardada abajo
+    const za = activeIndex * 3 + 1, key = stroke, bake = !stroke.direct;
     if (!scrCache || scrCache.key !== key || scrCache.w !== cw || scrCache.h !== ch) {
       const mk = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
       const below = scrCache && scrCache.w === cw && scrCache.h === ch ? scrCache.below : mk(), above = scrCache && scrCache.w === cw && scrCache.h === ch ? scrCache.above : mk();
       const bx = below.getContext('2d'), ax = above.getContext('2d');
       bx.setTransform(1, 0, 0, 1, 0, 0); bx.clearRect(0, 0, cw, ch); ax.setTransform(1, 0, 0, 1, 0, 0); ax.clearRect(0, 0, cw, ch);
-      bx.setTransform(M); paintPage(bx, dpr); paintEls(bx, els.filter(e => zOf(e) < za), k);
-      ax.setTransform(M); paintEls(ax, els.filter(e => zOf(e) > za + 1), k);
-      scrCache = { key, w: cw, h: ch, below, above };
+      bx.setTransform(M); paintPage(bx, dpr); paintEls(bx, els.filter(e => zOf(e) < za || (bake && zOf(e) === za)), k);
+      const up = els.filter(e => zOf(e) > za + 1);
+      ax.setTransform(M); paintEls(ax, up, k);
+      scrCache = { key, w: cw, h: ch, below, above, hasAbove: up.length > 0 };
     }
     x.drawImage(scrCache.below, 0, 0);
-    x.setTransform(M); paintEls(x, els.filter(e => { const z = zOf(e); return z === za || z === za + 1; }), k);
-    x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(scrCache.above, 0, 0);
+    x.setTransform(M);
+    const mid = els.filter(e => { const z = zOf(e); return (z === za && !bake) || z === za + 1; });
+    for (const el of mid) {
+      if (el === strokeCanvas && !symStroke(stroke)) {   // solo la parte donde ya hay trazo
+        const b = clampBox(stroke.bbox); if (!b) continue;
+        let a = el.style.opacity === '' ? 1 : +el.style.opacity; if (!(a > 0)) continue;
+        x.globalAlpha = Math.min(1, a); x.imageSmoothingEnabled = !pixelMode;
+        x.drawImage(el, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h); x.globalAlpha = 1;
+      } else paintEl(x, el, k, wrapper.classList.contains('rigdim'));
+    }
+    x.setTransform(1, 0, 0, 1, 0, 0); if (scrCache.hasAbove) x.drawImage(scrCache.above, 0, 0);
     return;
   }
   if (scrCache) scrCache.key = null;
@@ -2781,6 +2793,7 @@ function strokeMove(p, ev) {
   pt.d = s.len += s.sp ? Math.hypot(pt.x - s.sp.x, pt.y - s.sp.y) : 0;
   s.sp = pt; s.pts.push(pt);
   renderPoint(pt, false);
+  if (s.gBox) libGrainFlush(s, sctx, s.brush);
   quickShapeWatch(s, p);
 }
 // Grosor según presión, velocidad y puntas del trazo (recibe el punto)
@@ -2842,7 +2855,7 @@ function drawPt(pt, final) {
     if (s.tool === 'airbrush') s.tip = getSoftTip(s.color);
   }
   switch (s.tool) {
-    case 'custom': customBrush(pt); break;
+    case 'custom': customBrush(pt, final); break;
     case 'gradient': gradientFill(pt, final); break;
     case 'brush': if (pixelMode) pixelPen(pt); else roundBrush(pt, final); break;
     case 'eraser':
@@ -2850,7 +2863,7 @@ function drawPt(pt, final) {
       else if (s.ek === 'soft') softEraser(pt);
       else if (s.ek === 'air') airbrush(pt);
       else if (s.ek === 'grain') charcoal(pt);
-      else if (s.ek === 'custom') customBrush(pt);
+      else if (s.ek === 'custom') customBrush(pt, final);
       else roundBrush(pt, final);
       break;
     case 'calligraphy': calligraphy(pt); break;
@@ -2975,10 +2988,10 @@ function paintGradient(s, pt) {
   sctx.fillStyle = g; sctx.fillRect(0, 0, W, H);
 }
 // Pincel personalizado: estampa la imagen del pincel a lo largo del trazo
-function customBrush(pt) {
+function customBrush(pt, final) {
   const s = stroke, B = s.brush;
   if (B.lib) {
-    const gb = libSegment(s, sctx, B, pt, q => s.size * pf(q));
+    const gb = libSegment(s, sctx, B, pt, q => s.size * pf(q), final);
     if (gb[0] < Infinity) { grow(gb[0], gb[1], 0); grow(gb[2], gb[3], 0); }
     return;
   }
@@ -3030,7 +3043,8 @@ function endStroke() {
     else if (s.dyn && (s.dyn.end > 0 || s.dyn.start > 0) && s.pts.length > 1) replayStroke(s);   // rehace el trazo con las puntas según su largo real
     else renderPoint(f, true);
   }
-  if (s.brush && s.brush.lib && !s.brush.def.m && s.pts.length && s.len * viewScale() < 4 && (s.brush.def.fl ?? 1) < 0.3) {
+  if (s.gBox) libGrainFlush(s, sctx, s.brush);
+  if (s.brush && s.brush.lib && !s.brush.def.m && !s.brush.def.round && s.pts.length && s.len * viewScale() < 4 && (s.brush.def.fl ?? 1) < 0.3) {
     // un toque con un pincel muy suave (aerógrafo, acuarela…): se repite el sello para que se vea
     const d = s.brush.def, n = Math.min(30, Math.ceil(Math.log(0.55) / Math.log(1 - (d.fl || 0.05)))), q = s.pts[0], gb = [Infinity, Infinity, -Infinity, -Infinity];
     for (let k = 0; k < n; k++) libDab(s, sctx, s.brush, q.x, q.y, s.size, 0, s.rng, gb);
@@ -3403,11 +3417,11 @@ function grainTile(kind) {
 // m: modo (stamp = sellos · bristle = cerdas · pixel = cuadraditos) · sp: separación · fl: carga de pintura por sello
 const LIB_DEFS = [
   { id: 'l-suave', n: 'Pincel suave', cat: 'basic', ico: '☁️', tip: () => tSoft(0), sp: 0.1, fl: 0.13, sz: 60 },
-  { id: 'l-duro', n: 'Pincel duro', cat: 'basic', ico: '⚫', tip: () => tDisc(), sp: 0.05, fl: 1, sz: 24, dyn: { start: 0.15, end: 0.2, speed: 0 } },
+  { id: 'l-duro', n: 'Pincel duro', cat: 'basic', ico: '⚫', tip: () => tDisc(), round: true, sp: 0.05, fl: 1, sz: 24, dyn: { start: 0.15, end: 0.2, speed: 0 } },
   { id: 'l-lapiz', n: 'Lápiz', cat: 'basic', ico: '✏️', tip: () => tSoft(0.55), sp: 0.08, fl: 0.6, sz: 6, grain: 'fine', dyn: { start: 0.2, end: 0.3, speed: 0.2 } },
   { id: 'l-carbon', n: 'Carboncillo', cat: 'basic', ico: '🪨', tips: R => tDots(R, 900, 3, 0.7, 0.3), v: 3, sp: 0.12, fl: 0.7, rj: 180, sj: 0.15, sz: 26, grain: 'rough' },
-  { id: 'l-tinta', n: 'Tinta', cat: 'basic', ico: '🖋️', tip: () => tDisc(), sp: 0.05, fl: 1, sz: 14, spat: { p: 0.025, n: 6, d: 1.8 }, dyn: { start: 0.25, end: 0.45, speed: 0.35 } },
-  { id: 'l-pluma', n: 'Pluma (lineart)', cat: 'basic', ico: '✒️', tip: () => tDisc(), sp: 0.04, fl: 1, sz: 6, dyn: { start: 0.65, end: 0.8, speed: 0.4 } },
+  { id: 'l-tinta', n: 'Tinta', cat: 'basic', ico: '🖋️', tip: () => tDisc(), round: true, sp: 0.05, fl: 1, sz: 14, spat: { p: 0.025, n: 6, d: 1.8 }, dyn: { start: 0.25, end: 0.45, speed: 0.35 } },
+  { id: 'l-pluma', n: 'Pluma (lineart)', cat: 'basic', ico: '✒️', tip: () => tDisc(), round: true, sp: 0.04, fl: 1, sz: 6, dyn: { start: 0.65, end: 0.8, speed: 0.4 } },
   { id: 'l-marcador', n: 'Marcador', cat: 'basic', ico: '🖍️', tip: () => tChisel(), sp: 0.06, fl: 1, rot: -0.7, sz: 34, op: 0.72 },
   { id: 'l-aero', n: 'Aerógrafo', cat: 'basic', ico: '💨', tips: R => { const s = tSoft(0); const x = s.m.getContext('2d'); x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 500; i++) { x.globalAlpha = R() * 0.4; x.fillRect(R() * LT, R() * LT, 2, 2); } return s; }, sp: 0.1, fl: 0.06, sz: 90 },
   { id: 'l-acuarela', n: 'Acuarela', cat: 'paint', ico: '💧', tips: R => tWater(R), v: 5, sp: 0.05, fl: 0.035, rj: 180, sj: 0.25, sc: 0.06, hj: 0.02, lj: 0.06, sz: 70 },
@@ -3483,7 +3497,7 @@ function libColor(s, d, R) {
 const libTintCache = new Map();
 function libTint(B, i, col) {
   const key = B.id + i + col; let c = libTintCache.get(key); if (c) return c;
-  if (libTintCache.size > 260) libTintCache.clear();
+  if (libTintCache.size > 160) libTintCache.clear();
   const t = libTips(B)[i]; c = makeCanvas(LT, LT); const x = c.getContext('2d');
   x.fillStyle = col; x.fillRect(0, 0, LT, LT);
   if (t.hi) { x.globalCompositeOperation = 'source-atop'; x.drawImage(t.hi, 0, 0); }
@@ -3538,8 +3552,28 @@ function libPixel(s, ctx, B, x, y, size, R, gb) {
   gb[0] = Math.min(gb[0], x - r - cell); gb[1] = Math.min(gb[1], y - r - cell); gb[2] = Math.max(gb[2], x + r + cell); gb[3] = Math.max(gb[3], y + r + cell);
 }
 // Un tramo del trazo con un pincel de la biblioteca (sirve para el trazo real y para las muestras)
-function libSegment(s, ctx, B, pt, sizeAt) {
+// Punta redonda dura (pincel duro, tinta, pluma): una curva continua en vez de sellos, más liviana y prolija
+function libRound(s, ctx, pt, w, final, gb) {
+  ctx.strokeStyle = ctx.fillStyle = s.color; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1;
+  if (!s.last) { ctx.beginPath(); ctx.arc(pt.x, pt.y, w / 2, 0, 6.2832); ctx.fill(); s.last = pt; s.lastMid = pt; s.lastW = w; }
+  else {
+    const mid = final ? pt : { x: (s.last.x + pt.x) / 2, y: (s.last.y + pt.y) / 2 };
+    ctx.lineWidth = (s.lastW + w) / 2; ctx.beginPath(); ctx.moveTo(s.lastMid.x, s.lastMid.y); ctx.quadraticCurveTo(s.last.x, s.last.y, mid.x, mid.y); ctx.stroke();
+    s.lastMid = mid; s.last = pt; s.lastW = w;
+  }
+  const e = w / 2 + 2; gb[0] = Math.min(gb[0], pt.x - e); gb[1] = Math.min(gb[1], pt.y - e); gb[2] = Math.max(gb[2], pt.x + e); gb[3] = Math.max(gb[3], pt.y + e);
+}
+function libSegment(s, ctx, B, pt, sizeAt, final = false) {
   const d = B.def, R = s.rng;
+  if (d.round) {
+    const gb = [Infinity, Infinity, -Infinity, -Infinity], w = Math.max(0.5, sizeAt(pt));
+    libRound(s, ctx, pt, w, final, gb);
+    if (d.spat && R() < d.spat.p * 3) { ctx.fillStyle = s.color;
+      for (let k = 0; k < d.spat.n; k++) { const a = R() * 6.2832, r = s.size * d.spat.d * (0.5 + R() * 0.5), q = { x: pt.x + Math.cos(a) * r, y: pt.y + Math.sin(a) * r };
+        ctx.beginPath(); ctx.arc(q.x, q.y, Math.max(0.6, s.size * (0.02 + R() * 0.07)), 0, 6.2832); ctx.fill();
+        gb[0] = Math.min(gb[0], q.x - s.size); gb[1] = Math.min(gb[1], q.y - s.size); gb[2] = Math.max(gb[2], q.x + s.size); gb[3] = Math.max(gb[3], q.y + s.size); } }
+    return gb;
+  }
   if (s.last && Math.hypot(pt.x - s.last.x, pt.y - s.last.y) > 0.01) s.dir = Math.atan2(pt.y - s.last.y, pt.x - s.last.x);
   const dir = s.dir || 0, gb = [Infinity, Infinity, -Infinity, -Infinity];
   if (d.m === 'bristle') {
@@ -3547,11 +3581,19 @@ function libSegment(s, ctx, B, pt, sizeAt) {
     walkPath(pt, Math.max(0.8, s.size * 0.1), (x, y, q) => libBristle(s, ctx, B, x, y, sizeAt(q), s.dir || 0, R, gb), s);
   } else if (d.m === 'pixel') walkPath(pt, Math.max(1, Math.round(s.size / 5) * 0.7), (x, y, q) => libPixel(s, ctx, B, x, y, sizeAt(q), R, gb), s);
   else walkPath(pt, Math.max(0.7, s.size * B.spacing), (x, y, q) => libDab(s, ctx, B, x, y, sizeAt(q), dir, R, gb), s);
-  if (d.grain && gb[0] < Infinity) {   // el grano del papel: se borra lo que cae en los huecos
-    ctx.save(); ctx.beginPath(); ctx.rect(gb[0], gb[1], gb[2] - gb[0], gb[3] - gb[1]); ctx.clip();
-    ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = grainTile(d.grain); ctx.fillRect(gb[0], gb[1], gb[2] - gb[0], gb[3] - gb[1]); ctx.restore();
+  if (d.grain && gb[0] < Infinity) {   // el grano se aplica una vez por movimiento del dedo (no en cada sello)
+    const G = s.gBox || (s.gBox = [Infinity, Infinity, -Infinity, -Infinity]);
+    G[0] = Math.min(G[0], gb[0]); G[1] = Math.min(G[1], gb[1]); G[2] = Math.max(G[2], gb[2]); G[3] = Math.max(G[3], gb[3]);
   }
   return gb;
+}
+// El grano del papel: se borra lo que cae en los huecos de la textura
+function libGrainFlush(s, ctx, B) {
+  const G = s.gBox; if (!G || !B || !B.lib || !B.def.grain || G[0] === Infinity) return;
+  const x = Math.floor(G[0]), y = Math.floor(G[1]), w = Math.ceil(G[2]) - x, h = Math.ceil(G[3]) - y;
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = grainTile(B.def.grain); ctx.fillRect(x, y, w, h); ctx.restore();
+  s.gBox = null;
 }
 // Muestra de un pincel: una "S" con sus puntas, en el color elegido
 function libPreview(canvas, B, color) {
@@ -3562,7 +3604,8 @@ function libPreview(canvas, B, color) {
   let L = 0; pts.forEach((q, i) => { if (i) L += Math.hypot(q.x - pts[i - 1].x, q.y - pts[i - 1].y); q.d = L; });
   const dy = d.dyn || { start: 0, end: 0 }, tl = Math.min(taperLen(size) * 0.6, 0.45 * L);
   const sizeAt = q => { let f = 1; if (dy.start > 0) f *= taperF(q.d / (dy.start * tl)); if (dy.end > 0) f *= taperF((L - q.d) / (dy.end * tl)); return size * f; };
-  pts.forEach(q => libSegment(s, ctx, B, q, sizeAt));
+  pts.forEach((q, i) => libSegment(s, ctx, B, q, sizeAt, i === pts.length - 1));
+  libGrainFlush(s, ctx, B);
 }
 // ---- panel de selección ----
 let libCat = 'all';
@@ -3571,6 +3614,7 @@ function openBrushLibrary() {
 }
 function closeBrushLibrary() { $('blib').hidden = true; }
 let libRenderJob = 0;
+const libPrevCache = new Map();   // muestras ya dibujadas: al volver a abrir el panel aparecen al instante
 function renderBrushLibrary() {
   const chips = $('blib-cats'); chips.textContent = '';
   [['all', 'Todos'], ...LIB_CATS, ['mine', '⭐ Mis pinceles']].forEach(([k, n]) => {
@@ -3592,7 +3636,9 @@ function renderBrushLibrary() {
   // las muestras se dibujan de a poco para que el panel abra al instante
   const col = settings.color && settings.color.toLowerCase() !== '#ffffff' ? settings.color : '#1a1a1a';
   const step = () => { if (job !== libRenderJob || $('blib').hidden) return; const t0 = performance.now();
-    while (todo.length && performance.now() - t0 < 24) { const [cv, B] = todo.shift(); try { B.lib ? libPreview(cv, B, col) : drawBrushPreview(cv, B, col); } catch (e) {} }
+    while (todo.length && performance.now() - t0 < 14) { const [cv, B] = todo.shift(); const key = B.id + col, hit = libPrevCache.get(key);
+      if (hit) { cv.getContext('2d').drawImage(hit, 0, 0); continue; }
+      try { B.lib ? libPreview(cv, B, col) : drawBrushPreview(cv, B, col); libPrevCache.set(key, cv); } catch (e) {} }
     if (todo.length) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
@@ -3602,6 +3648,7 @@ function pickLibBrush(B) {
   setTool('custom');
   if (B.lib) setSize(mem || B.def.sz || settings.size);
   saveSettings(); closeBrushLibrary(); renderBrushList(); updateDynUI();
+  if (B.lib) setTimeout(() => { try { const t = libTips(B); if (!B.def.m) t.forEach((_, i) => libTint(B, i, settings.color)); } catch (e) {} }, 60);   // prepara las puntas antes de dibujar
   toast(`${B.ico || '⭐'} ${B.name}` + (B.def && B.def.op ? ' · se ve transparente como un marcador' : ''), 1600);
 }
 
