@@ -18,11 +18,28 @@
     "appId": "com.tokers.dibujo",
     "productName": "Toker's",
     "copyright": "Toker's",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "www/**/*", "!www/sw.js"],
-    "win": { "icon": "build/icon.png", "target": ["portable", "zip"] },
-    "portable": { "artifactName": "Tokers-Portable.exe", "requestExecutionLevel": "user" },
-    "zip": { "artifactName": "Tokers-PC-carpeta.zip" },
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "www/**/*",
+      "!www/sw.js"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "portable",
+        "zip"
+      ],
+      "artifactName": "Tokers-PC-carpeta.${ext}"
+    },
+    "portable": {
+      "artifactName": "Tokers-Portable.exe",
+      "requestExecutionLevel": "user"
+    },
     "compression": "maximum",
     "asar": true
   }

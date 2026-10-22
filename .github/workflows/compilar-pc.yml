@@ -39,7 +39,8 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           npm version --no-git-tag-version --allow-same-version "1.${{ github.run_number }}.0"
-          npx electron-builder --win portable zip --x64 --publish never
+          set -o pipefail
+          npx electron-builder --win portable zip --x64 --publish never 2>&1 | tee ../build-pc.log
           ls -la dist
 
       - name: Publicar para descargar
@@ -51,3 +52,11 @@ jobs:
             --title "Toker's para PC — versión 1.${{ github.run_number }}" \
             --notes "Tokers-Portable.exe: un solo archivo, se abre con doble clic, sin instalar; los proyectos quedan en la carpeta Tokers-datos al lado del .exe (sirve para pendrive). Tokers-PC-carpeta.zip: lo mismo en carpeta, abre más rápido." \
             --latest=false
+
+      - name: Guardar el registro si algo falló
+        if: failure()
+        run: |
+          git config --global user.name "Toker's"; git config --global user.email "tokers@users.noreply.github.com"
+          mkdir /tmp/log && cp build-pc.log /tmp/log/ 2>/dev/null || echo "sin registro" > /tmp/log/build-pc.log
+          cd /tmp/log && git init -q -b pc-log && git add -A && git commit -qm "registro" && \
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" pc-log
